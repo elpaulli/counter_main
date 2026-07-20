@@ -1,0 +1,199 @@
+/* ============================================
+   COUNTER- CLT — SITE STYLESHEET
+   ============================================
+   Structure, tokens and layout live in base.css (imported below).
+   All media queries live in responsive.css (linked after this file).
+
+   This file holds only what is specific to Counter- CLT:
+     - the font files and token overrides
+     - the hero definition overlay (logo + copy)
+     - the footer grid's extra-links expand toggle
+   ============================================ */
+
+@import url("base.css");
+
+/* ---------- FONTS ---------- */
+@font-face {
+    font-family: "Pitch-Sans";
+    src: url("../fonts/pitch-sans-medium.woff") format("woff");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Doner-Bold";
+    src: url("../fonts/Doner-BoldText.woff2") format("woff2");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Doner";
+    src: url("../fonts/doner-regulardisplay.woff2") format("woff2");
+    font-style: normal;
+    font-display: swap;
+}
+
+
+
+@font-face {
+    font-family: "Tiempos";
+    src: url("../fonts/tiempos-headline-semibold.woff") format("woff");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ---------- SITE DESIGN TOKENS ---------- */
+/* Overrides base.css defaults. Light-theme values are inherited from base. */
+:root {
+    --font-sans:    "Pitch-Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --font-display: "Doner-Bold", Georgia, serif;
+    --bg:    #f8f2e6;
+    --fg:    #212121;
+    --fg-70: rgba(33, 33, 33, 0.70);
+    --fg-30: rgba(33, 33, 33, 0.30);
+    --fg-20: rgba(33, 33, 33, 0.20);
+}
+.dark_theme {
+    --fg:    #f8f2e6;
+    --bg:    #212121;
+    --fg-70: rgba(248, 242, 230, 0.70);
+    --fg-30: rgba(248, 242, 230, 0.30);
+    --fg-20: rgba(248, 242, 230, 0.20);
+}
+/* ---------- BRAND MARK EXTRAS ---------- */
+.michelin_star {
+    width: 25px;
+    margin-top: 8px;
+}
+
+.michelin_star_path {
+    fill: var(--fg);
+    transition: fill var(--theme-fade);
+}
+
+.brand-mark {
+    pointer-events: all;
+    z-index: 130;
+}
+.doner-font-add-space {
+    font-family: var(--font-display);
+    letter-spacing: 1px;
+    font-size: .65em;
+    text-transform: uppercase;
+}
+
+/* ---------- DEFINITION (hero overlay) ---------- */
+.definition-phonetic {
+    opacity: 0;
+    transform: translateY(20px);
+    /* Single grid cell everything shares, so the logos stack for the crossfade
+       while the container still sizes itself to their natural height */
+    display: grid;
+    align-items: center;
+    /* Containing block for the rotate prompt */
+    position: relative;
+}
+
+.definition-logo {
+    grid-area: 1 / 1;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 130px;
+    display: block;
+    opacity: 0;
+    fill: var(--fg);
+    transition: fill var(--theme-fade);
+    will-change: opacity;
+    /* The overlay is pointer-events: none, so only the visible logo opts back in */
+    pointer-events: none;
+}
+
+.definition-logo.is-active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.definition-text {
+    font-size: clamp(12px, 1.2vw, 16px);
+    letter-spacing: 0.08em;
+    max-width: 800px;
+    color: var(--fg);
+    /* Reserve the tallest copy's height up front. The overlay is a centred
+       column, so a change in line count here would otherwise shove the logo. */
+    min-height: 4.8em;
+    margin-top: 24px;
+}
+
+/* ---------- GSAP initial states ---------- */
+.hero-definition-overlay .definition-text {
+    opacity: 0;
+}
+
+.main-content {
+    mix-blend-mode: darken;
+}
+
+.site-grid-top-center {
+    flex-direction: row;
+    justify-content: center;
+    gap: .5em;
+}
+
+/* ---------- LIGHT / DARK THEME SWITCH ---------- */
+.theme-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: none;
+    border: none;
+    padding: 0;
+    margin-bottom: 8px;
+    cursor: pointer;
+    color: var(--fg);
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+    pointer-events: all;
+}
+
+.theme-switch:hover {
+    opacity: 1;
+}
+
+.theme-switch-icon {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 0.3s ease, transform 0.35s ease;
+}
+
+/* Light theme (default): sun shown, moon hidden */
+.theme-switch-icon-moon {
+    opacity: 0;
+    transform: scale(0.5) rotate(-90deg);
+}
+
+/* Dark theme: moon shown, sun hidden */
+.dark_theme .theme-switch-icon-sun {
+    opacity: 0;
+    transform: scale(0.5) rotate(90deg);
+}
+
+.dark_theme .theme-switch-icon-moon {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+}
+
+.grid-social, .grid-extra-link {
+    font-size: inherit;
+    font-weight: inherit;
+}

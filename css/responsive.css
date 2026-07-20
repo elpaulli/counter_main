@@ -1,0 +1,324 @@
+/* ============================================
+   RESPONSIVE — ALL MEDIA QUERIES
+   ============================================
+   Two halves:
+     1. BASE LAYER  — travels with base.css to every site in the series
+     2. SITE LAYER  — this site only (gallery, menu overlay, logo concepts)
+
+   Loaded after styles.css so it wins on equal specificity.
+   ============================================ */
+
+
+/* ============================================
+   1. BASE LAYER RESPONSIVE
+   ============================================ */
+
+/* Wider reveal on desktop — the intro clip opens from a narrower band */
+@media (min-width: 1000px) {
+    @keyframes helloSite {
+        0% {
+            -webkit-clip-path: inset(50% 50% 50% 50%);
+            clip-path: inset(50% 50% 50% 50%);
+        }
+        30% {
+            -webkit-clip-path: inset(33% 43% 33% 43%);
+            clip-path: inset(33% 43% 33% 43%);
+        }
+        60% {
+            -webkit-clip-path: inset(33% 43% 33% 43%);
+            clip-path: inset(33% 43% 33% 43%);
+        }
+        to {
+            -webkit-clip-path: inset(0 0 0 0);
+            clip-path: inset(0 0 0 0);
+        }
+    }
+}
+
+@media (max-width: 900px) {
+    /* ---------- SITE GRID ---------- */
+    .site-grid-top-right {
+        display: flex;
+    }
+
+    /* Holds the view switcher, which stays available on mobile — moved to the
+       top middle, nudged down so it clears the background switcher on its right */
+    .site-grid-bottom-left {
+        display: flex;
+        grid-column: 2/3;
+        grid-row: 1;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    /* Move address to bottom center, above CTAs */
+    .site-grid-top-center {
+        grid-column: 1 / -1;
+        grid-row: 1;
+        align-items: center;
+        justify-content: flex-end;
+        padding-bottom: 80px;
+    }
+
+    /* Hide center CTAs by default on mobile */
+    .site-grid-center:not(".past_presnt") {
+        display: none;
+    }
+
+    /* ---------- BOTTOM BAR ---------- */
+    /* Full width on mobile: menu left, reserve right, no angled clip */
+    .bottom-bar {
+        right: 0;
+        left: 0;
+        clip-path: none;
+        -webkit-clip-path: none;
+    }
+
+    .menu-toggle-btn {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: auto;
+        width: 50%;
+        height: var(--bar-h-mobile);
+        font-size: 14px;
+        clip-path: none;
+        -webkit-clip-path: none;
+        border-radius: 0;
+        align-items: center;
+        padding-bottom: 0px;
+        background: var(--fg);
+    }
+
+    .mobile-reserve-btn {
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        width: 50%;
+        height: var(--bar-h-mobile);
+        background: var(--fg);
+        color: var(--bg);
+        border: none;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 400;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        padding: 10px 24px;
+        cursor: pointer;
+        z-index: 200;
+        opacity: 0;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* ---------- HERO ---------- */
+    /* Full height minus the bottom bar */
+    .section-hero {
+        height: calc(100vh - var(--bar-h-mobile));
+    }
+
+    /* Push hero overlay content above the bottom bar */
+    .hero-definition-overlay {
+        padding-bottom: var(--bar-h-mobile);
+    }
+}
+
+
+/* ============================================
+   2. SITE LAYER RESPONSIVE — COUNTER- CLT
+   ============================================ */
+
+@media (max-width: 900px) {
+    /* ---------- LETTER NOTE ON TOUCH ---------- */
+    /* No cursor to track, and landscape has no headroom above the logo, so the
+       note is pinned under the letters by JS and reads as a centred caption */
+    .letter-note {
+        width: min(90vw, 560px);
+        max-width: none;
+        text-align: center;
+        font-size: clamp(15px, 3.4vw, 20px);
+    }
+
+    .hint-pointer {
+        display: none;
+    }
+
+    .hint-touch {
+        display: inline;
+    }
+
+    /* ---------- MENU OVERLAY ---------- */
+    .menu-overlay-inner {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 20px 24px 24px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        height: 100%;
+        padding-top: 50px;
+    }
+
+    /* Bottom nav moves to top on mobile */
+    .menu-cell-bottom-nav {
+        order: -1;
+        padding-top: 0;
+        padding-bottom: 12px;
+        justify-content: center;
+        width: 100vw;
+        margin-left: -24px;
+        padding-left: 5px;
+        padding-right: 5px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .menu-tab-btn {
+        flex: 0 1 auto;
+        min-width: 0;
+        font-size: 30px;
+    }
+
+    .menu-tab-sep {
+        flex-shrink: 0;
+    }
+
+    .menu-cell-content {
+        order: 1;
+        padding-right: 0;
+        flex-grow: 1;
+        min-width: 0;
+        overflow-x: hidden;
+    }
+
+    .menu-cell-reserve {
+        order: 2;
+        grid-template-rows: auto;
+        padding-left: 0;
+        flex-grow: 1;
+    }
+
+    /* Partners move to bottom on mobile */
+    .menu-cell-top-left {
+        order: 3;
+        flex-direction: column;
+        align-items: flex-start;
+        padding-left: 0;
+        padding-bottom: 55px;
+        flex-shrink: 0;
+    }
+
+    .menu-tab-panel.is-active {
+        width: 100%;
+    }
+
+    /* Sub-tabs horizontal on mobile */
+    .panel-subtab-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        height: auto;
+    }
+
+    .panel-subtab-nav {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        border-right: none;
+        border-bottom: 1px solid var(--fg-20);
+        padding-right: 0;
+        padding-bottom: 12px;
+        gap: 12px 16px;
+        width: 100%;
+        min-width: 0;
+        justify-content: center;
+    }
+
+    .panel-subtab-btn {
+        font-size: 14px;
+        padding: 5px 8px;
+        white-space: normal;
+    }
+
+    .panel-subtab-content {
+        width: 100%;
+        flex: 1;
+        display: block;
+        align-items: flex-start;
+    }
+
+    .panel-subtab-pane.is-active {
+        width: 100%;
+    }
+
+    /* Hide reserve links text on mobile */
+    .menu-reserve-links {
+        display: none;
+    }
+
+    .menu-overlay-nav {
+        min-width: unset;
+    }
+
+    .menu-overlay-content {
+        overflow-y: visible;
+    }
+
+    /* ---------- SWITCHERS ---------- */
+    /* Tighter so both switchers fit across a narrow top row */
+    .bg-switcher,
+    .view-switcher {
+        font-size: 9px;
+        gap: 7px;
+    }
+
+    /* ---------- LOGO CONCEPTS ---------- */
+    .logo-concepts .hero-definition-overlay {
+        z-index: 1001;
+    }
+
+    .site-grid-center.past_presnt {
+        grid-column: 1;
+        grid-column-end: 4;
+    }
+
+    .past_present .logo-slider-controls {
+        width: 100%;
+    }
+
+    /* ---------- GALLERY ---------- */
+    .gallery-img {
+        height: calc(100vh - var(--bar-h-mobile));
+    }
+
+    .gallery-img img {
+        min-width: 220px;
+    }
+}
+
+/* Phone-sized and upright: prompt the user to turn the device. Taken out of
+   flow so the logo stack stays centred on the page rather than being pushed down. */
+@media (max-width: 600px) and (orientation: portrait) {
+    .rotate-prompt {
+        display: block;
+        position: absolute;
+        bottom: calc(100% + 28px);
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(70%, 240px);
+        pointer-events: none;
+    }
+}
+
+@media (max-width: 600px) {
+    .gallery-img img {
+        min-width: 180px;
+    }
+
+    .menu-link {
+        font-size: clamp(14px, 4vw, 18px);
+    }
+}

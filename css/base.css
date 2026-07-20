@@ -1,0 +1,427 @@
+/* ============================================
+   BASE — REUSABLE FOUNDATION
+   ============================================
+   Shared across sites in this series. Holds design tokens, reset,
+   font utilities, sections, hero shell and the full-screen site grid.
+
+   Site-specific work belongs in styles.css:
+     - @font-face declarations (the font files themselves)
+     - token overrides (colours, families, metrics)
+     - anything unique to that site (gallery, menu overlay, etc.)
+
+   Companion file: responsive.css (all media queries)
+   ============================================ */
+
+/* ---------- DESIGN TOKENS ---------- */
+/* Defaults only. Each site overrides what it needs in styles.css. */
+:root {
+    /* Palette — dark by default */
+    --bg:    #0a0a0a;
+    --fg:    #ffffff;
+    --fg-70: rgba(255, 255, 255, 0.70);
+    --fg-30: rgba(255, 255, 255, 0.30);
+    --fg-20: rgba(255, 255, 255, 0.20);
+    --accentColor: #246996;
+
+    /* Font families — the site supplies the @font-face for the first name */
+    --font-sans:    "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --font-display: Georgia, serif;
+    --font-text:    Georgia, serif;
+
+    /* Layout metrics */
+    --grid-pad:       10px;
+    --bar-h:          56px;
+    --bar-h-mobile:   60px;
+    --section-max:    900px;
+    --section-pad-y:  120px;
+    --section-pad-x:  40px;
+
+    /* Motion */
+    --theme-fade: 0.6s ease;
+}
+
+/* Dark theme — site loads light by default (see styles.css); this class
+   switches to the dark palette. Palette values themselves live in
+   styles.css, since each site tunes its own dark/light colours. */
+
+/* ---------- RESET & BASE ---------- */
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-sans);
+    background-color: var(--bg);
+    color: var(--fg);
+    overflow-x: hidden;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color var(--theme-fade), color var(--theme-fade);
+}
+
+body.loading {
+    overflow: hidden;
+}
+
+a {
+    color: var(--fg);
+    text-decoration: none;
+    transition: opacity 0.3s ease;
+}
+
+a:hover {
+    opacity: 0.6;
+}
+
+img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+/* ---------- FONT UTILITY CLASSES ---------- */
+.font-sans {
+    font-family: var(--font-sans);
+}
+
+.font-display {
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0.04em;
+}
+
+.font-text {
+    font-family: var(--font-text);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+
+/* ---------- LOADING SCREEN ---------- */
+.loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg);
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.loader-line {
+    width: 0;
+    height: 1px;
+    background-color: var(--fg);
+    margin-top: 24px;
+}
+
+/* ---------- BRAND MARK (fixed top-left) ---------- */
+.brand-mark {
+    position: fixed;
+    top: 0px;
+    left: 15px;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.brand-mark img {
+    width: 40px;
+    height: auto;
+    display: block;
+    /* Source art is black, so it needs inverting only once the dark theme's
+       background goes dark underneath it */
+    filter: invert(0);
+    transition: filter var(--theme-fade);
+}
+
+.dark_theme .brand-mark img {
+    filter: invert(1);
+}
+
+/* ---------- MAIN CONTENT REVEAL ---------- */
+.main-content {
+    opacity: 0;
+    -webkit-clip-path: inset(50% 50% 50% 50%);
+    clip-path: inset(50% 50% 50% 50%);
+}
+
+.main-content.debut {
+    opacity: 1;
+    animation: helloSite 5.4s cubic-bezier(.85, 0, .15, 1) forwards;
+}
+
+@keyframes helloSite {
+    0% {
+        -webkit-clip-path: inset(50% 50% 50% 50%);
+        clip-path: inset(50% 50% 50% 50%);
+    }
+    30% {
+        -webkit-clip-path: inset(34% 30% 34% 30%);
+        clip-path: inset(34% 30% 34% 30%);
+    }
+    60% {
+        -webkit-clip-path: inset(34% 30% 34% 30%);
+        clip-path: inset(34% 30% 34% 30%);
+    }
+    to {
+        -webkit-clip-path: inset(0 0 0 0);
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+/* ---------- SECTIONS ---------- */
+.section {
+    position: relative;
+}
+
+.section-inner {
+    max-width: var(--section-max);
+    margin: 0 auto;
+    padding: var(--section-pad-y) var(--section-pad-x);
+}
+
+/* ---------- HERO ---------- */
+.section-hero {
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+/* Definition overlay — fixed above loader during intro, stays above the hero after */
+.hero-definition-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+    pointer-events: none;
+}
+
+/* ---------- FIXED BOTTOM BAR ---------- */
+.bottom-bar {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    height: var(--bar-h);
+    z-index: 200;
+    border: none;
+    background: var(--fg);
+    -webkit-clip-path: polygon(0 15px, 100% 3px, 100% 100%, 0 100%);
+    clip-path: polygon(0 15px, 100% 3px, 100% 100%, 0 100%);
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    border-left: 1px solid var(--fg);
+}
+
+.menu-toggle-btn {
+    opacity: 0;
+    color: var(--bg);
+    font-family: inherit;
+    font-size: 14px;
+    text-transform: uppercase;
+    -webkit-clip-path: polygon(0 15px, 100% 3px, 100% 100%, 0 100%);
+    clip-path: polygon(0 15px, 100% 3px, 100% 100%, 0 100%);
+    padding: 0 24px;
+    cursor: pointer;
+    z-index: 200;
+    border: none;
+    background: var(--fg);
+    height: calc(var(--bar-h) - 1px);
+}
+
+.menu-toggle-btn:hover {
+    border-color: var(--fg-70);
+}
+
+.menu-toggle-btn.is-active {
+    background: var(--bg);
+    color: var(--fg);
+    border-color: var(--fg);
+}
+
+/* Mobile reserve button — hidden on desktop, laid out in responsive.css */
+.mobile-reserve-btn {
+    display: none;
+}
+
+/* ---------- FULL-SCREEN SITE GRID ---------- */
+.site-grid {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    padding: var(--grid-pad);
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.site-grid-cell {
+    pointer-events: all;
+}
+
+.site-grid-top-center {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
+}
+
+.site-grid-top-right {
+    grid-column: 3;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    text-align: right;
+}
+
+.site-grid-bottom-left {
+    grid-column: 1;
+    grid-row: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+}
+
+.site-grid-bottom-right {
+    grid-column: 3;
+    grid-row: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-end;
+    text-align: right;
+}
+.site-grid-center {
+    grid-column: 2;
+    grid-row: 3;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 20px;
+    pointer-events: all;
+}
+
+/* ---------- SITE GRID CONTENT ---------- */
+.grid-address {
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--fg);
+    line-height: 1;
+}
+
+.grid-phone {
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--fg);
+}
+
+.grid-cta {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--fg);
+    text-decoration: none;
+}
+
+.grid-cta-sep {
+    font-size: 11px;
+    color: var(--fg);
+}
+
+.grid-copy {
+    font-size: 10px;
+    font-weight: 300;
+    color: var(--fg);
+}
+
+.grid-social-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.grid-social-links {
+    display: flex;
+    gap: 16px;
+}
+
+.grid-social {
+    font-size: 11px;
+    font-weight: 300;
+    letter-spacing: 0.12em;
+    color: var(--fg);
+    text-decoration: none;
+}
+
+.grid-expand-toggle {
+    background: none;
+    border: none;
+    color: var(--fg);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.5;
+    padding: 0;
+    transition: opacity 0.2s ease, transform 0.3s ease;
+    pointer-events: all;
+}
+
+.grid-expand-toggle.is-open {
+    transform: rotate(45deg);
+    opacity: 1;
+}
+
+.grid-extra-links {
+    display: flex;
+    gap: 16px;
+    overflow: hidden;
+    height: 0;
+    opacity: 0;
+}
+
+.grid-extra-link {
+    font-size: 11px;
+    font-weight: 300;
+    letter-spacing: 0.12em;
+    color: var(--fg);
+    text-decoration: none;
+    opacity: 0.5;
+    white-space: nowrap;
+    transform: translateX(-12px);
+}
