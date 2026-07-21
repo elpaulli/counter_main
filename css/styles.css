@@ -106,8 +106,11 @@
     max-height: 130px;
     display: block;
     opacity: 0;
+    /* Settled state: a solid dark mark on the light background. During the
+       black loading screen `body.intro` flips it light; when the reveal begins
+       that class drops and it eases back to dark over the expansion. */
     fill: var(--fg);
-    transition: fill var(--theme-fade);
+    transition: fill 1.1s ease;
     will-change: opacity;
     /* The overlay is pointer-events: none, so only the visible logo opts back in */
     pointer-events: none;
@@ -123,10 +126,81 @@
     letter-spacing: 0.08em;
     max-width: 800px;
     color: var(--fg);
+    transition: color 1.1s ease;
     /* Reserve the tallest copy's height up front. The overlay is a centred
        column, so a change in line count here would otherwise shove the logo. */
     min-height: 4.8em;
     margin-top: 24px;
+}
+
+/* ---------- LOADING COUNTER (0 → 100, intro only) ---------- */
+.loading-counter {
+    margin-top: 30px;
+    font-family: var(--font-display);
+    font-size: clamp(26px, 4.5vw, 52px);
+    letter-spacing: 0.06em;
+    line-height: 1;
+    color: var(--intro-light);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loading-counter::after {
+    content: "%";
+    font-size: 0.5em;
+    vertical-align: super;
+    margin-left: 0.15em;
+    opacity: 0.6;
+}
+
+/* ---------- INTRO (black loading curtain) ---------- */
+/* The intro is a black curtain (#loader) over the canvas. The logo, copy and
+   counter sit on top of it in a light colour; when everything's loaded the
+   curtain fades away, the overlay switches to difference blend, and the canvas
+   scrolls into view behind it. */
+:root {
+    --intro-black: #0d0d0d;
+    --intro-light: #f4ede0;
+}
+
+/* The loader IS the curtain — black from the first paint, so nothing flashes
+   before the JS runs. It fades to nothing at reveal, then display:none. */
+.loader {
+    background-color: var(--intro-black);
+}
+
+body.intro {
+    background-color: var(--intro-black);
+    overflow: hidden;
+}
+
+body.intro .definition-logo {
+    fill: var(--intro-light);
+}
+
+body.intro .definition-text {
+    color: var(--intro-light);
+}
+
+/* ---------- IMMERSIVE STATE (added at reveal) ---------- */
+/* The overlay switches to difference blending so the mark and copy invert
+   against the canvas revealed behind the dissolving curtain. Fill/colour go
+   white because difference needs a light source to read as the backdrop's
+   inverse; over the black curtain that lands on white, so the switch is seamless
+   at the start of the reveal and only diverges (intentionally) over the photos. */
+body.is-immersive .hero-definition-overlay {
+    mix-blend-mode: difference;
+}
+
+/* transition:none — this flip happens the instant the zoom lands, not eased. */
+body.is-immersive .definition-logo {
+    fill: #fff;
+    transition: none;
+}
+
+body.is-immersive .definition-text {
+    color: #fff;
+    transition: none;
 }
 
 /* ---------- GSAP initial states ---------- */
@@ -134,14 +208,159 @@
     opacity: 0;
 }
 
+/* The canvas sits behind the curtain the whole time, so it can be visible from
+   the start (base.css hides it for the old clip reveal — undo that here). The
+   cream backdrop means transparent areas of the canvas read as the light page,
+   not black. */
 .main-content {
-    mix-blend-mode: darken;
+    mix-blend-mode: normal;
+    background-color: var(--bg);
+    opacity: 1;
+    clip-path: none;
+    -webkit-clip-path: none;
 }
 
 .site-grid-top-center {
     flex-direction: row;
     justify-content: center;
     gap: .5em;
+}
+
+/* ---------- INFINITE CANVAS ---------- */
+.infinite-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    /* The intro overlay and site grid sit above this */
+    z-index: 1;
+}
+
+.infinite-canvas.is-dragging {
+    cursor: grabbing;
+}
+
+.infinite-canvas canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* Panning owns the gesture; don't let the browser scroll instead */
+    touch-action: none;
+}
+
+/* ---------- CENTRED MENU (filters the canvas) ---------- */
+/* base.css gives .bottom-bar an angled, --fg-filled bar pinned bottom-right.
+   The canvas menu wants none of that: override to a transparent, centred,
+   auto-sized container so only the Menu control itself shows. */
+.bottom-bar {
+    left: 0;
+    right: 0;
+    bottom: 12px;
+    height: auto;
+    background: none;
+    border: none;
+    -webkit-clip-path: none;
+    clip-path: none;
+    justify-content: center;
+    align-items: flex-end;
+    z-index: 130;
+    pointer-events: none;
+}
+
+.canvas-menu {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Only the control is interactive; the rest of the bar row stays clickable
+       through to the canvas */
+    pointer-events: auto;
+}
+
+.canvas-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 200px;
+    padding: 11px 22px;
+    cursor: pointer;
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--fg-20);
+    border-radius: 999px;
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: border-color 0.3s ease, background-color var(--theme-fade),
+                color var(--theme-fade);
+}
+
+.canvas-menu-toggle:hover,
+.canvas-menu.is-open .canvas-menu-toggle {
+    border-color: var(--fg-70);
+}
+
+/* Options stack above the toggle and float, so opening never shifts the
+   toggle's position */
+.canvas-menu-options {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 8px;
+    min-width: 200px;
+    background: var(--bg);
+    border: 1px solid var(--fg-20);
+    border-radius: 14px;
+    /* Collapsed: hidden and non-interactive until opened */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-50%) translateY(8px);
+    transition: opacity 0.3s ease, transform 0.3s ease,
+                visibility 0s linear 0.3s;
+}
+
+.canvas-menu.is-open .canvas-menu-options {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+    transition: opacity 0.3s ease, transform 0.3s ease,
+                visibility 0s linear 0s;
+}
+
+.canvas-menu-option {
+    background: none;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    text-align: center;
+    opacity: 0.6;
+    transition: opacity 0.25s ease, background-color 0.25s ease;
+}
+
+.canvas-menu-option:hover,
+.canvas-menu-option:focus-visible {
+    opacity: 1;
+    background: var(--fg-20);
+}
+
+.canvas-menu-option.is-active {
+    opacity: 1;
 }
 
 /* ---------- LIGHT / DARK THEME SWITCH ---------- */

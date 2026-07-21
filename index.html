@@ -85,6 +85,7 @@
             </svg>
         </div>
          <p class="definition-text">coun·ter /ˈkoun(t)ər/ — contrary to intuition or to common-sense expectation but often nevertheless true.</p>
+         <div class="loading-counter" id="loading-counter" aria-hidden="true">0</div>
     </div>
 
     <!-- ========== FIXED BRAND MARK (top-left) ========== -->
@@ -170,19 +171,37 @@
     <!-- ========== MAIN CONTENT WRAPPER ========== -->
     <main id="main-content" class="main-content">
 
-        <!-- HERO / IMAGE GALLERY SLIDER -->
+        <!-- INFINITE CANVAS — seamless, pan-anywhere image space -->
         <section id="hero" class="section section-hero">
-           
+            <div id="infinite-canvas" class="infinite-canvas"></div>
         </section>
 
     </main>
 
-    <!-- ========== FIXED BOTTOM BAR ========== -->
+    <!-- ========== CENTRED MENU (filters the canvas) ========== -->
     <div class="bottom-bar">
+        <div class="canvas-menu" id="canvas-menu">
+            <div class="canvas-menu-options" id="canvas-menu-options"></div>
+            <button class="canvas-menu-toggle" id="canvas-menu-toggle" type="button"
+                    aria-haspopup="true" aria-expanded="false">
+                <span class="canvas-menu-label" id="canvas-menu-label">Menu</span>
+            </button>
+        </div>
     </div>
 
     <!-- ========== SCRIPTS ========== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="js/main.js"></script>
+
+    <!-- Three.js ships as ESM; the import map lets the canvas modules use a
+         bare "three" specifier without a bundler -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.1/build/three.module.js"
+        }
+    }
+    </script>
+    <script type="module" src="js/canvas-init.js"></script>
 </body>
 </html>
