@@ -217,6 +217,11 @@ export function createInfiniteCanvas(options) {
                     texture.colorSpace = THREE.SRGBColorSpace;
                     texture.generateMipmaps = true;
                     texture.minFilter = THREE.LinearMipmapLinearFilter;
+                    /* Push it to the GPU now, while the loader curtain still hides
+                       the scene. Otherwise the upload (+ mipmap gen) happens the
+                       first frame a plane using it renders — i.e. mid-zoom, as new
+                       chunks scroll in — which is exactly the stutter we saw. */
+                    try { renderer.initTexture(texture); } catch (e) {}
                     textureCache.set(job.src, texture);
                     if (job.mesh) applyTexture(job.mesh, job.src, texture);
                     reportProgress();
