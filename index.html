@@ -16,10 +16,8 @@
 </head>
 <body>
 
-    <!-- ========== LOADING SCREEN (background only) ========== -->
     <div id="loader" class="loader"></div>
 
-    <!-- ========== HERO DEFINITION OVERLAY (fixed, above loader during intro) ========== -->
     <div class="hero-definition-overlay">
         <div class="definition-phonetic">
             <svg class="definition-logo is-active" role="img" aria-label="counter-" width="1100" height="161" viewBox="0 0 1100 161" xmlns="http://www.w3.org/2000/svg">
@@ -88,11 +86,9 @@
          <div class="loading-counter" id="loading-counter" aria-hidden="true">0</div>
     </div>
 
-    <!-- ========== FIXED BRAND MARK (top-left) ========== -->
     <div class="brand-mark">
         <div class="michelin_star">
             <?xml version="1.0" encoding="iso-8859-1"?>
-            <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 9.03 Build 0)  -->
             <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
                 viewBox="0 0 916 1002" xml:space="preserve">
             <path class="michelin_star_path" d="M624,219v-49c0-49.333-15.667-90-47-122S506,0,458,0c-52,0-92.667,16.333-122,49s-44,76.333-44,131
@@ -113,20 +109,17 @@
         <img src="images/counterLogo-black.png"> 
     </div>
 
-    <!-- ========== FULL-SCREEN SITE GRID ========== -->
     <div class="site-grid" id="site-grid">
          <div class="site-grid-cell site-grid-top-center ">
              <a href="https://www.exploretock.com/counterclt" target="_blank" rel="noopener noreferrer" class="grid-cta doner-font-add-space ">RESERVATIONS</a>
             <span class="grid-cta-sep">|</span>
             <a href="https://www.toasttab.com/counter-clt-llc-2001-w-morehead-st/giftcards" target="_blank" rel="noopener noreferrer" class="grid-cta doner-font-add-space ">GIFT CARD</a>
         </div>
-        <!-- Top-right: Address + Phone -->
         <div class="site-grid-cell site-grid-top-right ">
             <a href="mailto:reservations@counterclt.com" class="grid-address doner-font-add-space ">reservations@counterclt.com</a>
             <a href="tel:+19802922090" class="grid-phone doner-font-add-space ">1 (980) 292-2090</a>
         </div>
 
-        <!-- Center: CTAs -->
         <div class="site-grid-cell site-grid-bottom-right ">
             <button class="theme-switch" id="theme-switch" aria-label="Toggle light/dark theme" aria-pressed="false">
                 <svg class="theme-switch-icon theme-switch-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -147,7 +140,6 @@
             <a href="https://www.google.com/maps/search/2001+W+Morehead+St+Suite+D+Charlotte+NC+28208" target="_blank" rel="noopener noreferrer" class="grid-address doner-font-add-space ">2001 W MOREHEAD ST, SUITE D<br>CHARLOTTE, NC 28208</a>
         </div>
 
-        <!-- Bottom-left: Copyright + Social -->
         <div class="site-grid-cell site-grid-bottom-left">
             <span class="grid-copy">&copy;2026 COUNTER-</span>
             <div class="grid-social-row">
@@ -168,33 +160,75 @@
 
     </div>
 
-    <!-- ========== MAIN CONTENT WRAPPER ========== -->
     <main id="main-content" class="main-content">
-
-        <!-- INFINITE CANVAS — seamless, pan-anywhere image space -->
         <section id="hero" class="section section-hero">
             <div id="infinite-canvas" class="infinite-canvas"></div>
         </section>
-
     </main>
 
-    <!-- ========== CENTRED MENU (filters the canvas) ========== -->
+
+    <div class="canvas-focus-plus" id="canvas-focus-plus" aria-hidden="true">
+        <svg viewBox="0 0 24 24" focusable="false">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="7.5" x2="12" y2="16.5"></line>
+            <line x1="7.5" y1="12" x2="16.5" y2="12"></line>
+        </svg>
+    </div>
+
+    <div class="filter-panels" id="filter-panels">
+        <article class="filter-panel" data-filter="experience">
+            <h2 class="filter-panel-title">The Experience</h2>
+            <p class="filter-panel-body">counter- is Michelin starred tasting menu concept by Chef and innovator Sam Hart. We are a story-driven dining experience focused on producing the highest level personal memory for guests, while showcasing our region in a singular composition. Owned and operated as a collective effort amongst employees with a shared mission to change the industry, counter- is designed to evoke emotion throughout the progressive dining experience, fully immersing guests by utilizing sound, taste, and art as a vehicle. The menu, which rotates quarterly, is driven by sense-based storylines such as music, modern art, and mental health.</p>
+        </article>
+
+        <article class="filter-panel" data-filter="design">
+            <h2 class="filter-panel-title">The Design</h2>
+            <p class="filter-panel-body">Purposefully designed to mimic a blank canvas and features muted concrete floors and countertops that can easily be transformed to fit the rotating menus, tableware, and art that accompany each quarterly story-driven menu.</p>
+        </article>
+
+        <article class="filter-panel" data-filter="details">
+            <h2 class="filter-panel-title">The Details</h2>
+            <p class="filter-panel-body">Similar to a theatrical performance, counter- is a shared experience with seatings Wednesday through Saturday. Seating is limited and reservations are required.</p>
+            <p class="filter-panel-body">Wine and spirit-free beverage pairings are available.</p>
+            <p class="filter-panel-body">Please be respectful of all parties during your seating. For special events, business dinners, and other large parties, our private dining room may be the perfect choice.</p>
+            <p class="filter-panel-body">Certain seasonal themes may not be suitable for children under the age of 18, so please be sure to contact us in advance at <a href="mailto:reservations@counterclt.com">reservations@counterclt.com</a>.</p>
+        </article>
+
+        <article class="filter-panel" data-filter="beverages">
+            <h2 class="filter-panel-title">The Beverages</h2>
+            <p class="filter-panel-body">We don’t call ourselves match-makers, but we do have the perfect pairing for every course.</p>
+            <p class="filter-panel-body">We put the utmost care into curating the perfect pairings for each theme and menu. The beverage program, led by Beverage Director Michael Myers, is proud to feature a diverse offering that includes female, LGBTQ+, and minority winemakers, alongside a thoughtfully curated spirit-free pairing option.</p>
+            <p class="filter-panel-body">Interested in a glass or a bottle instead? Our award winning bottle list is at your fingertips.</p>
+        </article>
+
+        <article class="filter-panel" data-filter="team">
+            <h2 class="filter-panel-title">The Team</h2>
+            <p class="filter-panel-body">Executive Chef/Founder Sam Hart aspires for counter- to be an incubator for rising star chefs, providing them a place for empowerment, guidance, and inspiration to open their own concepts in Charlotte, while also elevating experiences in Hart’s own hometown.</p>
+        </article>
+    </div>
+
     <div class="bottom-bar">
         <div class="canvas-menu" id="canvas-menu">
             <div class="canvas-menu-options" id="canvas-menu-options"></div>
-            <button class="canvas-menu-toggle" id="canvas-menu-toggle" type="button"
-                    aria-haspopup="true" aria-expanded="false">
-                <span class="canvas-menu-label" id="canvas-menu-label">Menu</span>
-            </button>
+            <div class="canvas-menu-bar">
+                <button class="canvas-menu-toggle" id="canvas-menu-toggle" type="button"
+                        aria-haspopup="true" aria-expanded="false">
+                    <span class="canvas-menu-label" id="canvas-menu-label">Menu</span>
+                </button>
+                <button class="canvas-menu-clear" id="canvas-menu-clear" type="button"
+                        aria-label="Clear filter, show all images">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="8.6" y1="8.6" x2="15.4" y2="15.4"></line>
+                        <line x1="15.4" y1="8.6" x2="8.6" y2="15.4"></line>
+                    </svg>
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- ========== SCRIPTS ========== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="js/main.js"></script>
-
-    <!-- Three.js ships as ESM; the import map lets the canvas modules use a
-         bare "three" specifier without a bundler -->
     <script type="importmap">
     {
         "imports": {

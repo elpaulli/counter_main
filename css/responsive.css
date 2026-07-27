@@ -322,3 +322,45 @@
         font-size: clamp(14px, 4vw, 18px);
     }
 }
+
+/* ---------- FILTER PANELS ON NARROW SCREENS ---------- */
+/* The desktop layout puts the copy in whichever half of the frame the strip
+   left empty. On a phone there is no comfortable half in either direction, so
+   every panel — whatever side it was assigned — collapses to the same full
+   width band near the top, and the strip is simply read behind it. */
+@media (max-width: 900px) {
+    .filter-panel,
+    .filter-panel[data-side="left"],
+    .filter-panel[data-side="right"],
+    .filter-panel[data-side="top"],
+    .filter-panel[data-side="bottom"] {
+        display: block;
+        left: 6vw;
+        right: 6vw;
+        top: 11vh;
+        bottom: auto;
+        width: auto;
+        margin: 0;
+    }
+
+    .filter-panel-title {
+        margin-bottom: 12px;
+    }
+
+    .filter-panel-body {
+        font-size: 12px;
+        line-height: 1.7;
+    }
+
+    .filter-panel-body + .filter-panel-body {
+        margin-top: 0.9em;
+    }
+}
+
+/* Landscape phones have no vertical room for a block of copy over the strip;
+   the title alone carries it. */
+@media (max-width: 900px) and (orientation: landscape) {
+    .filter-panel-body {
+        display: none;
+    }
+}

@@ -9,7 +9,9 @@
       "anchor": [
         -1,
         -1
-      ]
+      ],
+      "layout": "reel",
+      "side": "right"
     },
     {
       "id": "design",
@@ -20,7 +22,9 @@
       "anchor": [
         1,
         -1
-      ]
+      ],
+      "layout": "reel",
+      "side": "bottom"
     },
     {
       "id": "details",
@@ -31,19 +35,22 @@
       "anchor": [
         1,
         1
-      ]
+      ],
+      "layout": "reel",
+      "side": "left"
     },
     {
       "id": "menus",
       "label": "the Menus",
       "folders": [
-        "experience",
-        "details"
+        "menu"
       ],
       "anchor": [
         -1,
         1
-      ]
+      ],
+      "layout": "scatter",
+      "side": null
     },
     {
       "id": "beverages",
@@ -54,7 +61,9 @@
       "anchor": [
         0,
         1
-      ]
+      ],
+      "layout": "reel",
+      "side": "right"
     },
     {
       "id": "team",
@@ -65,408 +74,363 @@
       "anchor": [
         0,
         0
-      ]
+      ],
+      "layout": "reel",
+      "side": "top"
     }
   ],
+  "introCaps": {
+    "menu": 2
+  },
   "images": [
     {
       "src": "images/experience/BA711CF4-163C-4906-8D81-F5C340C67760-897-0000001EF8AC51F8.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--Photography_C-xHAGS3_DSC_0759.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--Photography_C-xHAGS3_DSC_0863.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--Photography_C-xHAGS3_DSC_0864.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--Photography_uchi3_DSC_0666.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--Photography_uchi4_DSC_0077.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--Photography_uchi4_DSC_0311.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--SUMMER-_26-71.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--SUMMER-_26-73.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--SUMMER-_26-79.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--SUMMER-_26-81.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter--SUMMER-_26-82.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0290.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0297.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0328.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0343.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0352.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0372.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0393.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0401.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0423.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0427.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0433.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0441.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0469.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0470.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0521.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0534.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0545.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0553.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0567.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0571.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/Counter_24Dec0582.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/FRI00119.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/FRI00425.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2063-2.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2067-2.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2083-2.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2155-2.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2158-2.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2162-2.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2196-2.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2207-2.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2211-2.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2235-2.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2388.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_2451.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/IMG_9594.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/carolina-tuxedo.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
       "src": "images/experience/scallop_web.jpg",
       "folder": "experience",
       "filters": [
-        "experience",
-        "menus"
+        "experience"
       ]
     },
     {
@@ -704,343 +668,405 @@
       "src": "images/details/Counter--Photography_C-2and3_DSC_0121.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_C-2and3_DSC_0912.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_C-2and3_DSC_0957.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_C-2and3_DSC_0990.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_C-4and5_DSC_0118.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_C-4and5_DSC_0871.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_C-xHAGS3_DSC_0013.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_C-xHAGS3_DSC_0186.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_C-xHAGS3_DSC_0440.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_C-xHAGS3_DSC_0636.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_uchi4_DSC_0021.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_uchi4_DSC_0089.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_uchi4_DSC_0133.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_uchi4_DSC_0144-(1).jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_uchi4_DSC_0249-(1).jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_uchi4_DSC_0269.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter--Photography_uchi4_DSC_0339.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/Counter_July24105284.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2090-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2095-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2100-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2118-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2131-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2144-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2169-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2178-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2186-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2189-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2223-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2224-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2227-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2235-2-2.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2456.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2468.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_2474.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/IMG_3693.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/anchovy_web.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/chicken.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/lime_web.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/lobster_web.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/meat_web.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/pans_web.jpg",
       "folder": "details",
       "filters": [
-        "details",
-        "menus"
+        "details"
       ]
     },
     {
       "src": "images/details/potato_web.jpg",
       "folder": "details",
       "filters": [
-        "details",
+        "details"
+      ]
+    },
+    {
+      "src": "images/menu/Beethoven+Menu.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Carolina+kaiseki+menu.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Covers+Menu+Back.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Covers+Menu.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Curry+-+Fall+2023.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Fire+Menu+Back.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Fire+Menu.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Greatest+hits+back.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Greatest+hits.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Hannibal+-+Halloween+2023.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/John+Williams+Menu+Back.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/John+Williams+Menu.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Modern+Menu.jpg",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Stadium+Arcadium+Menu+Back.webp",
+      "folder": "menu",
+      "filters": [
+        "menus"
+      ]
+    },
+    {
+      "src": "images/menu/Stadium+Arcadium+Menu.webp",
+      "folder": "menu",
+      "filters": [
         "menus"
       ]
     },

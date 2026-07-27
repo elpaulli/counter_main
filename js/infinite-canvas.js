@@ -160,6 +160,107 @@ const ANCHOR_INSET = 0.6;
 const SWAP_READY_FRACTION = 0.6;
 const SWAP_MAX_WAIT_S = 1.2;
 
+/* ---------- reel layout ----------
+   A filter marked layout:"reel" doesn't scatter back into the 3D field. Its
+   images instead fly out of the gathered cluster into one endless vertical
+   strip down the right of the frame: a single large image centred, the bottom
+   of the previous one showing above it and the top of the next below, scrolling
+   under the wheel. The strip rides a gently curved spine, so the column drifts
+   sideways as it travels rather than running dead straight.
+
+   The reel is its own small set of planes — one per image in the pool, in pool
+   order — rather than part of the chunk field, because "endless" here means a
+   finite list looping, not procedurally generated space. */
+
+/* The spine, as an SVG path in a 100x100 viewBox. y 0..100 runs the length of
+   the strip (SVG's y-down convention, so it can be authored in a vector tool
+   and pasted in); x is the strip's *deviation from its own centreline*, where
+   50 is dead straight. Only M and C commands are read.
+
+   Deviation rather than absolute position is what lets one path serve all four
+   strips: the per-axis `inset` below decides which edge it sits on, and this
+   only says how the strip wanders as it travels. Keep it monotonic in y — the
+   reel reads deviation off it as a function of distance along the strip. */
+const REEL_PATH = "M 46 0 C 56 28, 56 72, 46 100";
+
+
+/* How many points the spine is sampled into. It's a fixed table built once at
+   load, not per frame. */
+const REEL_SPINE_SAMPLES = 256;
+
+/* How tall the strip is, in viewport heights. Only the middle ~1 of that is on
+   screen; the rest is the run-up either side, so images are placed and dropped
+   well outside the frame and never pop into view. */
+const REEL_SPAN = 2.8;
+
+/* Per axis: the box each image is fitted inside (fractions of the viewport
+   measured along the strip and across it), and how far the strip's centreline
+   sits from the middle of the frame (fraction of the half extent across it).
+
+   Two sets because the axes aren't interchangeable — a vertical strip on a wide
+   screen has height to spend and width to spare, a horizontal one the reverse —
+   and because `cross` and `inset` together decide how far the images reach back
+   toward the middle. That matters: the copy panel occupies the opposite half,
+   and a wide box on a small inset puts the two on top of each other.
+
+   `gap` is the space between slots as a fraction of the along box — what lets
+   the neighbours' edges show, telling you the strip continues.
+
+   `snug` decides how slots are sized. Off, every slot is a full along-box wide,
+   which is right when the images are all roughly one shape. On, each image gets
+   a slot as wide as it actually renders — which this library needs on the
+   horizontal strips, being 61% portrait and 37% landscape: a fixed slot sized
+   for one shape leaves a hole around the other, and the hole was the whole
+   complaint. The vertical strips stay un-snug, unchanged. */
+const REEL_BOX_VERTICAL = {
+    along: 0.62, cross: 0.40, inset: 0.46, gap: 0.19, snug: false
+};
+const REEL_BOX_HORIZONTAL = {
+    along: 0.30, cross: 0.46, inset: 0.38, gap: 0.06, snug: true
+};
+
+/* Depth the strip sits at. Inside the solid band (NEAR_FADE_FULL ..
+   DEPTH_FADE_START) so the depth fade leaves it alone. */
+const REEL_DEPTH = 65;
+
+/* How much of the spine's tangent the images take on as tilt. 0 keeps every
+   image upright; 1 would rotate them fully onto the curve. A little sells the
+   path, a lot looks like a mistake. */
+const REEL_TILT = 0.4;
+
+/* Scroll feel is deliberately NOT its own model: the strip runs on the same
+   accumulator -> velocity -> decay the camera fly-through uses, with the same
+   constants (WHEEL_SPEED, DRAG_SPEED, MAX_VELOCITY, VELOCITY_LERP,
+   VELOCITY_DECAY, SCROLL_DECAY). Both move in world units, so they transfer
+   directly, and a flick of the wheel builds speed and coasts through the images
+   exactly as it does in the 3D field. Easing toward a target position instead
+   loses that — it decelerates into a stop rather than carrying. */
+
+/* ---------- focus (clicking a photo on the unfiltered canvas) ----------
+   Click a plane and it is selected — a plus appears over it. Click that same
+   plane again and it flies to the middle of the frame at as much of the screen
+   height as it can fill, while the rest of the world, chrome included, fades to
+   nothing. A click anywhere then puts it back where it was.
+
+   Unfiltered canvas only: a filter's layout is a composition of its own, and
+   lifting one image out of a reel or a themed scatter says nothing. */
+const FOCUS_IN = 0.75;
+const FOCUS_OUT = 0.55;
+
+/* Where the focused image sits, and how much of the frame it fills. Height is
+   the target; the width cap only stops a panorama running off the sides. */
+const FOCUS_DEPTH = 60;
+const FOCUS_FILL_H = 0.92;
+const FOCUS_FILL_W = 0.94;
+
+/* A press counts as a click, rather than the end of a drag, only if the pointer
+   barely moved and it was over quickly. */
+const CLICK_SLOP = 6;
+const CLICK_MS = 450;
+
+/* Don't let a click land on a plane that is barely on screen. */
+const PICK_MIN_OPACITY = 0.3;
+
 /* ---------- motion ---------- */
 const DRAG_SPEED = 0.05;
 const WHEEL_SPEED = 0.05;
@@ -198,6 +299,113 @@ function hashCoords(cx, cy, cz, salt) {
     h ^= h >>> 15;
     return h >>> 0;
 }
+
+/* ---------- reel spine ---------- */
+/* Read an SVG path of one M followed by cubic C segments into a flat list of
+   Bezier segments. Deliberately minimal — this parses the shape of path we
+   author for the reel, not SVG in general; anything else throws it out and the
+   reel falls back to a straight column. */
+function parsePath(d) {
+    const t = d.match(/[MmCc]|-?\d*\.?\d+/g);
+    if (!t) return null;
+    const segs = [];
+    let i = 0;
+    let cx = 0;
+    let cy = 0;
+    let cmd = null;
+    while (i < t.length) {
+        if (/[MmCc]/.test(t[i])) {
+            cmd = t[i];
+            i++;
+        }
+        const n = function () { return parseFloat(t[i++]); };
+        if (cmd === "M" || cmd === "m") {
+            const x = n();
+            const y = n();
+            cx = cmd === "m" ? cx + x : x;
+            cy = cmd === "m" ? cy + y : y;
+            /* Any coordinate pairs following an M are implicit line commands;
+               the reel path doesn't use them, so stop rather than guess. */
+            cmd = null;
+            if (i < t.length && !/[MmCc]/.test(t[i])) return null;
+        } else if (cmd === "C" || cmd === "c") {
+            const rel = cmd === "c";
+            const ox = rel ? cx : 0;
+            const oy = rel ? cy : 0;
+            const x1 = ox + n();
+            const y1 = oy + n();
+            const x2 = ox + n();
+            const y2 = oy + n();
+            const x3 = ox + n();
+            const y3 = oy + n();
+            segs.push({ x0: cx, y0: cy, x1: x1, y1: y1, x2: x2, y2: y2, x3: x3, y3: y3 });
+            cx = x3;
+            cy = y3;
+        } else {
+            return null;
+        }
+    }
+    return segs.length ? segs : null;
+}
+
+/* Sample the path into a table the reel can query by height.
+
+   The reel places images at even *vertical* intervals and looks up how far the
+   spine has wandered sideways at that height — so the strip's framing (one
+   image centred, its neighbours peeking in) stays exact no matter how the path
+   curves. That makes the useful form of the path x as a function of y, which is
+   why this samples into a y-ascending table rather than by arc length. */
+function buildSpine(d, samples) {
+    const segs = parsePath(d);
+    const xs = new Float64Array(samples + 1);
+    const ys = new Float64Array(samples + 1);
+    if (!segs) {
+        /* Straight column at frame centre — the reel still works, it just
+           doesn't curve. */
+        for (let i = 0; i <= samples; i++) {
+            xs[i] = 50;
+            ys[i] = (i / samples) * 100;
+        }
+        return { xs: xs, ys: ys };
+    }
+    for (let i = 0; i <= samples; i++) {
+        const st = (i / samples) * segs.length;
+        const si = Math.min(Math.floor(st), segs.length - 1);
+        const lt = st - si;
+        const s = segs[si];
+        const mt = 1 - lt;
+        const a = mt * mt * mt;
+        const b = 3 * mt * mt * lt;
+        const c = 3 * mt * lt * lt;
+        const e = lt * lt * lt;
+        xs[i] = a * s.x0 + b * s.x1 + c * s.x2 + e * s.x3;
+        ys[i] = a * s.y0 + b * s.y1 + c * s.y2 + e * s.y3;
+    }
+    return { xs: xs, ys: ys };
+}
+
+/* Lateral position of the spine at height `y` (viewBox units, 0..100), by
+   binary search over the y-ascending table. Clamped at both ends so heights off
+   either end of the path just hold the end's offset. */
+function spineX(spine, y) {
+    const ys = spine.ys;
+    const xs = spine.xs;
+    const last = ys.length - 1;
+    if (y <= ys[0]) return xs[0];
+    if (y >= ys[last]) return xs[last];
+    let lo = 0;
+    let hi = last;
+    while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1;
+        if (ys[mid] <= y) lo = mid;
+        else hi = mid;
+    }
+    const span = ys[hi] - ys[lo];
+    const f = span > 1e-9 ? (y - ys[lo]) / span : 0;
+    return xs[lo] + (xs[hi] - xs[lo]) * f;
+}
+
+const REEL_SPINE = buildSpine(REEL_PATH, REEL_SPINE_SAMPLES);
 
 /* mulberry32 — cheap, well-distributed, seedable */
 function mulberry32(seed) {
@@ -373,6 +581,10 @@ export function createInfiniteCanvas(options) {
     }
 
     function releaseMesh(mesh) {
+        /* The pool recycles planes as chunks are culled. If the selected one is
+           going back, the selection has to go with it — otherwise the plus
+           tracks a plane that has become some other image. */
+        if (mesh === focusMesh) cancelFocus();
         scene.remove(mesh);
         mesh.material.map = null;
         mesh.material.opacity = 0;
@@ -381,6 +593,8 @@ export function createInfiniteCanvas(options) {
         mesh.userData.requested = false;
         mesh.userData.opacity = 0;
         mesh.userData.aspect = 1;
+        mesh.userData.lean = 0;
+        mesh.rotation.z = 0;
         pool.push(mesh);
     }
 
@@ -463,6 +677,7 @@ export function createInfiniteCanvas(options) {
             };
             mesh.userData.phase = phase;
             mesh.userData.aspect = 1;
+            mesh.userData.lean = 0;
             mesh.userData.size = size;
             mesh.userData.src = activePool[mediaIndex].src;
             mesh.userData.hasTexture = false;
@@ -506,6 +721,304 @@ export function createInfiniteCanvas(options) {
                 chunks.delete(key);
             }
         });
+    }
+
+    /* ---------- reel ----------
+       One plane per pool image, in pool order, living outside the chunk field.
+       Positions are recomputed every frame from the scroll offset, so `home` is
+       dynamic here where a chunk plane's is fixed — everything downstream
+       (gather, depth fade, load priority) reads `home` and so needs no special
+       case for the reel at all. */
+    let reelActive = false;
+    /* Which edge the strip runs along: "left"/"right" scroll vertically,
+       "top"/"bottom" horizontally. */
+    let reelSide = "right";
+    const reelItems = [];
+    /* Slot table, sized with the reel and rewritten each frame by layoutReel:
+       where each image starts along the strip, how wide its slot is, and the
+       height it renders at. */
+    let reelStart = null;
+    let reelSlot = null;
+    let reelSize = null;
+    /* Position along the strip, in world units, and the momentum driving it —
+       the same four-part model as the camera: wheel impulses land in `accum`,
+       bleed into `targetVel`, which `vel` chases and which decays on its own. */
+    const reelScroll = { pos: 0, vel: 0, targetVel: 0, accum: 0 };
+
+    function buildReel() {
+        clearReel();
+        if (!activePool.length) return;
+
+        const rng = mulberry32(hashCoords(0, 0, 0, layoutSalt));
+        for (let i = 0; i < activePool.length; i++) {
+            const pileAngle = rng() * Math.PI * 2;
+            const pileRadius = Math.sqrt(rng());
+
+            const mesh = acquireMesh();
+            /* Placeholder until layoutReel runs — it is overwritten every frame
+               before anything reads it. */
+            mesh.userData.home = { x: 0, y: 0, z: 0 };
+            mesh.userData.pile = {
+                x: Math.cos(pileAngle) * pileRadius,
+                y: Math.sin(pileAngle) * pileRadius,
+                z: (rng() - 0.5) * PILE_DEPTH,
+                r: pileRadius,
+                spin: (rng() * 2 - 1) * CHURN_TUMBLE
+            };
+            mesh.userData.phase = rng();
+            mesh.userData.aspect = 1;
+            mesh.userData.size = 1;
+            mesh.userData.reelIndex = i;
+            mesh.userData.src = activePool[i].src;
+            mesh.userData.hasTexture = false;
+            mesh.userData.requested = false;
+            mesh.userData.opacity = 0;
+            mesh.material.opacity = 0;
+            mesh.material.map = null;
+            mesh.visible = false;
+
+            scene.add(mesh);
+            reelItems.push(mesh);
+        }
+        reelStart = new Float64Array(reelItems.length);
+        reelSlot = new Float64Array(reelItems.length);
+        reelSize = new Float64Array(reelItems.length);
+
+        reelScroll.pos = 0;
+        reelScroll.vel = 0;
+        reelScroll.targetVel = 0;
+        reelScroll.accum = 0;
+    }
+
+    function clearReel() {
+        for (let i = 0; i < reelItems.length; i++) releaseMesh(reelItems[i]);
+        reelItems.length = 0;
+    }
+
+    function reelIsVertical() {
+        return reelSide === "left" || reelSide === "right";
+    }
+
+    /* ---------- focus ----------
+       `focusMesh` is the selected plane (the one wearing the plus);
+       `focusZoomed` says it has been opened; `focus.amount` is the 0..1 GSAP
+       drives, which updatePlane blends position, scale and opacity against. */
+    let selectEnabled = true;
+    let focusMesh = null;
+    let focusZoomed = false;
+    const focus = { amount: 0 };
+    const raycaster = new THREE.Raycaster();
+    const pickNdc = new THREE.Vector2();
+    const pickList = [];
+    const projected = new THREE.Vector3();
+    const focusTarget = { x: 0, y: 0, z: 0 };
+    let focusMaxH = 0;
+    let focusMaxW = 0;
+    let indicatorShown = false;
+    const pressStart = { x: 0, y: 0, t: 0 };
+
+    function pickMesh(e) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        pickNdc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        pickNdc.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+        raycaster.setFromCamera(pickNdc, camera);
+
+        /* Only planes actually readable on screen are candidates — the field is
+           full of near-transparent ones at its edges and in its depth, and
+           picking one of those would feel like clicking nothing. */
+        pickList.length = 0;
+        chunks.forEach(function (meshes) {
+            for (let i = 0; i < meshes.length; i++) {
+                const m = meshes[i];
+                if (m.visible && m.material.opacity >= PICK_MIN_OPACITY) pickList.push(m);
+            }
+        });
+
+        const hits = raycaster.intersectObjects(pickList, false);
+        return hits.length ? hits[0].object : null;
+    }
+
+    function handleClick(e) {
+        /* Open: a click anywhere closes it. */
+        if (focusZoomed) {
+            exitFocus();
+            return;
+        }
+        if (!selectEnabled || !inputEnabled) return;
+
+        const hit = pickMesh(e);
+        if (!hit) {
+            focusMesh = null;
+        } else if (hit === focusMesh) {
+            enterFocus();
+        } else {
+            focusMesh = hit;
+        }
+    }
+
+    function enterFocus() {
+        if (focusZoomed || !focusMesh) return;
+        focusZoomed = true;
+        /* Pan and fly-through are off while an image is open — the click that
+           closes it must not also throw the camera. */
+        inputEnabled = false;
+        focusMesh.renderOrder = 1;
+        if (typeof options.onFocusChange === "function") options.onFocusChange(true);
+        window.gsap.to(focus, { amount: 1, duration: FOCUS_IN, ease: "power3.out" });
+    }
+
+    function exitFocus() {
+        if (!focusZoomed) return;
+        focusZoomed = false;
+        if (typeof options.onFocusChange === "function") options.onFocusChange(false);
+        window.gsap.to(focus, {
+            amount: 0,
+            duration: FOCUS_OUT,
+            ease: "power2.inOut",
+            onComplete: function () {
+                if (focusMesh) focusMesh.renderOrder = 0;
+                focusMesh = null;
+                inputEnabled = true;
+            }
+        });
+    }
+
+    /* Hard reset, no animation: a filter has taken over, or the selected plane
+       is being recycled out from under us. */
+    function cancelFocus() {
+        window.gsap.killTweensOf(focus);
+        focus.amount = 0;
+        if (focusMesh) {
+            focusMesh.renderOrder = 0;
+            focusMesh = null;
+        }
+        if (focusZoomed) {
+            focusZoomed = false;
+            inputEnabled = true;
+            if (typeof options.onFocusChange === "function") options.onFocusChange(false);
+        }
+    }
+
+    /* Park the plus over the selected plane, in screen space. */
+    function updateFocusIndicator() {
+        const el = options.focusIndicator;
+        if (!el) return;
+
+        const show = Boolean(focusMesh) && !focusZoomed && focus.amount < 0.01;
+        if (!show) {
+            if (indicatorShown) {
+                el.classList.remove("is-visible");
+                indicatorShown = false;
+            }
+            return;
+        }
+
+        projected.copy(focusMesh.position).project(camera);
+        const rect = renderer.domElement.getBoundingClientRect();
+        const x = rect.left + (projected.x * 0.5 + 0.5) * rect.width;
+        const y = rect.top + (-projected.y * 0.5 + 0.5) * rect.height;
+        el.style.transform =
+            "translate3d(" + x + "px," + y + "px,0) translate(-50%,-50%)";
+        if (!indicatorShown) {
+            el.classList.add("is-visible");
+            indicatorShown = true;
+        }
+    }
+
+    /* Lay the strip out for this frame: each image gets an even slot along the
+       strip, wrapped around the loop, offset across it by the spine's deviation
+       at that point.
+
+       Written in along/across terms rather than x/y so one pass serves all four
+       strips; `vertical` and `crossSign` are the only things that differ, and
+       they only bite at the two points where along/across become world axes.
+
+       Every item is placed, including the ones nowhere near the frame — they
+       simply land far along the strip and the renderer frustum-culls them.
+       Placing only the visible few would be cheaper, but the pool is also what
+       the gather collects into the corner: cull it here and the cluster would
+       shrink from a full pile to a handful of images at the swap.
+
+       Wrapping is seamless as long as half the loop clears the screen, i.e.
+       roughly three images or more in the pool. */
+    function layoutReel(halfW, halfH) {
+        const n = reelItems.length;
+        if (!n) return;
+
+        const vertical = reelSide === "left" || reelSide === "right";
+        /* Which way along the cross axis the strip is pushed. Screen y is up in
+           world space, so "top" is positive and "bottom" negative. */
+        const crossSign = (reelSide === "right" || reelSide === "top") ? 1 : -1;
+
+        const halfAlong = vertical ? halfH : halfW;
+        const halfCross = vertical ? halfW : halfH;
+        const box = vertical ? REEL_BOX_VERTICAL : REEL_BOX_HORIZONTAL;
+
+        const boxAlong = halfAlong * 2 * box.along;
+        const boxCross = halfCross * 2 * box.cross;
+        const boxH = vertical ? boxAlong : boxCross;
+        const boxW = vertical ? boxCross : boxAlong;
+        const gapPx = boxAlong * box.gap;
+        const spanFull = halfAlong * 2 * REEL_SPAN;
+        const crossBase = crossSign * box.inset * halfCross;
+
+        /* Slot table. Each image is fitted to the box first, then given a slot
+           that either matches what it actually renders (snug) or a full box
+           (not). Recomputed every frame rather than cached against the aspects:
+           n is capped at the pool size, so a running total is cheaper than
+           working out whether a texture has landed since last time. */
+        let loop = 0;
+        for (let i = 0; i < n; i++) {
+            const aspect = reelItems[i].userData.aspect;
+            const size = Math.min(boxH, boxW / aspect);
+            reelSize[i] = size;
+            reelStart[i] = loop;
+            const along = box.snug ? (vertical ? size : size * aspect) : boxAlong;
+            reelSlot[i] = along + gapPx;
+            loop += reelSlot[i];
+        }
+
+        /* How far ahead along the spine to sample for the tangent, in viewBox y. */
+        const AHEAD = 2;
+        const dAlong = (AHEAD / 100) * spanFull;
+
+        for (let i = 0; i < n; i++) {
+            const mesh = reelItems[i];
+
+            /* Signed distance from the centre of the frame along the strip,
+               wrapped into [-loop/2, loop/2) so it runs endlessly both ways. */
+            const centre = reelStart[i] + reelSlot[i] * 0.5;
+            let d = (centre - reelScroll.pos) % loop;
+            if (d < -loop * 0.5) d += loop;
+            else if (d >= loop * 0.5) d -= loop;
+
+            /* Distance along the spine as viewBox y (0 at the start of the
+               strip, 100 at the end — SVG's direction, hence the negated d).
+               Items past either end read the clamped end deviation, which keeps
+               the strip straight where it has run off the path. */
+            const vy = (0.5 - d / spanFull) * 100;
+            const dev = (spineX(REEL_SPINE, vy) - 50) / 50 * halfCross;
+            const cross = crossBase + dev;
+
+            const home = mesh.userData.home;
+            home.x = camera.position.x + (vertical ? cross : d);
+            home.y = camera.position.y + (vertical ? d : cross);
+            home.z = camera.position.z - REEL_DEPTH;
+
+            /* Fitted to the box above, where the slot width was worked out from
+               the same number. */
+            mesh.userData.size = reelSize[i];
+
+            /* Lean into the spine's slope, so the strip visibly rides the curve
+               rather than sliding along it. With the tangent as (dCross across,
+               dAlong along), the plane turns by -atan(dCross/dAlong) — the same
+               expression on either axis, since both are written in the strip's
+               own frame. Taken at a fraction of the true angle: the full tangent
+               looks like a mistake, a hint of it reads. */
+            const dCross = (spineX(REEL_SPINE, vy + AHEAD) -
+                spineX(REEL_SPINE, vy)) / 50 * halfCross;
+            mesh.userData.lean = -REEL_TILT * Math.atan2(dCross, dAlong);
+        }
     }
 
     function clearChunks() {
@@ -689,25 +1202,43 @@ export function createInfiniteCanvas(options) {
     }
 
     function onPointerDown(e) {
+        /* Recorded even when input is off, because an open image still has to
+           be closable by clicking. */
+        pressStart.x = e.clientX;
+        pressStart.y = e.clientY;
+        pressStart.t = performance.now();
         if (!inputEnabled) return;
         dragging = true;
         lastPointer.x = e.clientX;
         lastPointer.y = e.clientY;
         container.classList.add("is-dragging");
+        /* Guarded like its release counterpart: capturing a pointer that isn't
+           active throws, and a failed capture only costs us drags that run off
+           the canvas — not worth taking the handler down for. */
         if (e.pointerId !== undefined && renderer.domElement.setPointerCapture) {
-            renderer.domElement.setPointerCapture(e.pointerId);
+            try { renderer.domElement.setPointerCapture(e.pointerId); } catch (err) {}
         }
     }
 
     function onPointerMove(e) {
         if (!dragging) return;
-        targetVel.x -= (e.clientX - lastPointer.x) * DRAG_SPEED;
-        targetVel.y += (e.clientY - lastPointer.y) * DRAG_SPEED;
+        if (reelActive) {
+            /* The reel owns the gesture: dragging throws the strip instead of
+               panning a field that isn't there. The images follow the pointer,
+               so the sign flips with the axis — screen y runs opposite world y,
+               screen x runs with world x. */
+            reelScroll.targetVel += reelIsVertical()
+                ? (e.clientY - lastPointer.y) * DRAG_SPEED
+                : -(e.clientX - lastPointer.x) * DRAG_SPEED;
+        } else {
+            targetVel.x -= (e.clientX - lastPointer.x) * DRAG_SPEED;
+            targetVel.y += (e.clientY - lastPointer.y) * DRAG_SPEED;
+        }
         lastPointer.x = e.clientX;
         lastPointer.y = e.clientY;
     }
 
-    function onPointerUp(e) {
+    function endDrag(e) {
         dragging = false;
         container.classList.remove("is-dragging");
         if (e.pointerId !== undefined && renderer.domElement.releasePointerCapture) {
@@ -715,11 +1246,35 @@ export function createInfiniteCanvas(options) {
         }
     }
 
+    /* Only a real pointerup can be a click — leaving the canvas or having the
+       gesture cancelled ends the drag but selects nothing. */
+    function onPointerUp(e) {
+        endDrag(e);
+        const moved = Math.abs(e.clientX - pressStart.x) +
+            Math.abs(e.clientY - pressStart.y);
+        if (moved <= CLICK_SLOP && performance.now() - pressStart.t < CLICK_MS) {
+            handleClick(e);
+        }
+    }
+
     /* Wheel feeds a scroll accumulator that bleeds into Z velocity, so a flick
-       of the wheel carries you forward and coasts to a stop */
+       of the wheel carries you forward and coasts to a stop. In reel mode it
+       drives the strip instead — there's nothing to fly through. */
     function onWheel(e) {
         e.preventDefault();
         if (!inputEnabled) return;
+        if (reelActive) {
+            /* Same impulse the fly-through gets, aimed at the strip. A vertical
+               strip is negated so scrolling down carries the images up; a
+               horizontal one advances left, which is what scrolling down means
+               on a sideways strip. Horizontal wheels / trackpad swipes feed the
+               same axis, so either gesture drives it. */
+            const delta = reelIsVertical()
+                ? -e.deltaY
+                : (e.deltaX || 0) + e.deltaY;
+            reelScroll.accum += delta * WHEEL_SPEED;
+            return;
+        }
         scrollAccum += e.deltaY * WHEEL_SPEED;
     }
 
@@ -727,8 +1282,8 @@ export function createInfiniteCanvas(options) {
     el.addEventListener("pointerdown", onPointerDown);
     el.addEventListener("pointermove", onPointerMove);
     el.addEventListener("pointerup", onPointerUp);
-    el.addEventListener("pointercancel", onPointerUp);
-    el.addEventListener("pointerleave", onPointerUp);
+    el.addEventListener("pointercancel", endDrag);
+    el.addEventListener("pointerleave", endDrag);
     el.addEventListener("wheel", onWheel, { passive: false });
 
     function onResize() {
@@ -746,6 +1301,11 @@ export function createInfiniteCanvas(options) {
 
     /* ---------- frame loop ---------- */
     let running = true;
+
+    /* Set once per frame, read by updatePlane — closure-level rather than
+       arguments so the shared per-plane path stays a plain two-arg call. */
+    let framePileScale = 0;
+    let frameCollecting = false;
 
     function frame() {
         if (!running) return;
@@ -782,7 +1342,17 @@ export function createInfiniteCanvas(options) {
         }
         camera.position.set(basePos.x + drift.x, basePos.y + drift.y, basePos.z);
 
-        updateChunks();
+        /* The reel replaces the chunk field rather than sitting on top of it —
+           building chunks here would repopulate the scatter behind the strip. */
+        if (!reelActive) updateChunks();
+
+        /* Strip momentum, stepped exactly like the camera's above. */
+        reelScroll.targetVel += reelScroll.accum;
+        reelScroll.accum *= SCROLL_DECAY;
+        reelScroll.targetVel = clamp(reelScroll.targetVel, -MAX_VELOCITY, MAX_VELOCITY);
+        reelScroll.vel += (reelScroll.targetVel - reelScroll.vel) * VELOCITY_LERP;
+        reelScroll.pos += reelScroll.vel;
+        reelScroll.targetVel *= VELOCITY_DECAY;
 
         const ccx = Math.round(basePos.x / CHUNK_SIZE);
         const ccy = Math.round(basePos.y / CHUNK_SIZE);
@@ -798,110 +1368,152 @@ export function createInfiniteCanvas(options) {
            pointer moves. */
         const halfH = Math.tan((CAMERA_FOV * 0.5) * Math.PI / 180) * ANCHOR_DEPTH;
         const halfW = halfH * camera.aspect;
-        const pileScale = Math.min(halfW, halfH) * PILE_SPREAD;
+        framePileScale = Math.min(halfW, halfH) * PILE_SPREAD;
         anchorWorld.x = camera.position.x + anchorNdc.x * halfW * ANCHOR_INSET;
         anchorWorld.y = camera.position.y + anchorNdc.y * halfH * ANCHOR_INSET;
         anchorWorld.z = camera.position.z - ANCHOR_DEPTH;
 
-        const collecting = collect.p > 0;
+        frameCollecting = collect.p > 0;
 
-        chunks.forEach(function (meshes, key) {
-            const p = key.split(",");
-            const gridDist = Math.max(
-                Math.abs(parseInt(p[0], 10) - ccx) / RENDER_X,
-                Math.abs(parseInt(p[1], 10) - ccy) / RENDER_Y,
-                Math.abs(parseInt(p[2], 10) - ccz) / RENDER_Z
-            );
-            const gridFade = clamp(1 - (gridDist - 0.5) / 0.5, 0, 1);
+        /* Where an opened image goes: dead centre, as tall as it can be without
+           running off the sides. */
+        const fHalfH = Math.tan((CAMERA_FOV * 0.5) * Math.PI / 180) * FOCUS_DEPTH;
+        focusTarget.x = camera.position.x;
+        focusTarget.y = camera.position.y;
+        focusTarget.z = camera.position.z - FOCUS_DEPTH;
+        focusMaxH = fHalfH * 2 * FOCUS_FILL_H;
+        focusMaxW = fHalfH * camera.aspect * 2 * FOCUS_FILL_W;
 
-            for (let m = 0; m < meshes.length; m++) {
-                const mesh = meshes[m];
-                const home = mesh.userData.home;
-                /* Camera looks down -Z, so a plane is in front when its z is
-                   less than the camera's. Planes behind get no opacity and no
-                   texture — they've been flown past and aren't drawable anyway,
-                   so this keeps the load budget on what's ahead.
-                   Depth is measured from home, not the rendered position: a
-                   plane collapsing toward the anchor must keep the visibility it
-                   had where it lives, or it would blink out mid-flight. */
-                const forward = basePos.z - home.z;
-                const absDepth = Math.abs(home.z - basePos.z);
-
-                let depthFade;
-                if (forward < 0 || absDepth > DEPTH_FADE_END || absDepth < NEAR_FADE_CUT) {
-                    /* behind the camera, past the far fade, or so close it would
-                       fill the screen — draw nothing */
-                    depthFade = 0;
-                } else if (absDepth < NEAR_FADE_FULL) {
-                    /* ramping up out of the near-fade zone as it recedes */
-                    depthFade = (absDepth - NEAR_FADE_CUT) /
-                        (NEAR_FADE_FULL - NEAR_FADE_CUT);
-                } else if (absDepth > DEPTH_FADE_START) {
-                    depthFade = 1 - (absDepth - DEPTH_FADE_START) /
-                        (DEPTH_FADE_END - DEPTH_FADE_START);
-                } else {
-                    depthFade = 1;
-                }
-                depthFade *= depthFade;
-
-                const target = Math.min(gridFade, depthFade) * fadeState.filterFade;
-
-                /* Only pull a texture once the plane is prominent enough to be
-                   worth a download — see REQUEST_THRESHOLD. */
-                if (target > REQUEST_THRESHOLD && !mesh.userData.requested) {
-                    requestTexture(mesh, mesh.userData.src);
-                }
-
-                /* Gather: slide the plane from home to its own spot in the
-                   cluster and shrink it, holding full opacity the whole way —
-                   the images gather, they don't dissolve. */
-                const ct = collecting ? meshCollect(mesh.userData.phase) : 0;
-                const shrink = 1 - ct * (1 - COLLECT_SCALE);
-                const pile = mesh.userData.pile;
-
-                /* Mix: turn the tile's place in the cluster around the anchor,
-                   further at the centre than at the rim, and tumble it on its
-                   own axis as it goes. */
-                let pileX = pile.x;
-                let pileY = pile.y;
-                if (collect.swirl !== 0) {
-                    const a = collect.swirl * (CHURN_CORE - pile.r);
-                    const cos = Math.cos(a);
-                    const sin = Math.sin(a);
-                    pileX = pile.x * cos - pile.y * sin;
-                    pileY = pile.x * sin + pile.y * cos;
-                }
-                /* Scaled by ct so the tumble belongs to the cluster and nothing
-                   else: it unwinds as the plane flies back out and is exactly 0
-                   once it's home. Without that the swirl's final value would
-                   leave the whole settled field sitting at a tilt. */
-                mesh.rotation.z = collect.swirl * pile.spin * ct;
-
-                mesh.position.set(
-                    home.x + (anchorWorld.x + pileX * pileScale - home.x) * ct,
-                    home.y + (anchorWorld.y + pileY * pileScale - home.y) * ct,
-                    home.z + (anchorWorld.z + pile.z - home.z) * ct
+        if (reelActive) {
+            layoutReel(halfW, halfH);
+            for (let i = 0; i < reelItems.length; i++) updatePlane(reelItems[i], 1);
+        } else {
+            chunks.forEach(function (meshes, key) {
+                const p = key.split(",");
+                const gridDist = Math.max(
+                    Math.abs(parseInt(p[0], 10) - ccx) / RENDER_X,
+                    Math.abs(parseInt(p[1], 10) - ccy) / RENDER_Y,
+                    Math.abs(parseInt(p[2], 10) - ccz) / RENDER_Z
                 );
-                mesh.scale.set(
-                    mesh.userData.size * mesh.userData.aspect * shrink,
-                    mesh.userData.size * shrink,
-                    1
-                );
-
-                const reveal = mesh.userData.hasTexture ? target : 0;
-                mesh.userData.opacity += (reveal - mesh.userData.opacity) * 0.18;
-                /* The pinch is applied after the smoothing lerp, never through
-                   it: the lerp is there to ease chunk and depth fades, and
-                   running the swap dip through it would leave planes still
-                   faintly visible at the moment the pool changes underneath. */
-                mesh.material.opacity = mesh.userData.opacity * collect.pinch;
-                mesh.visible = mesh.material.opacity > INVIS_THRESHOLD;
-            }
-        });
+                const gridFade = clamp(1 - (gridDist - 0.5) / 0.5, 0, 1);
+                for (let m = 0; m < meshes.length; m++) updatePlane(meshes[m], gridFade);
+            });
+        }
 
         applyBlur(collect.blur);
+        updateFocusIndicator();
         renderer.render(scene, camera);
     }
+
+    /* One plane, one frame. Shared by the chunk field and the reel: the only
+       thing that differs between them is where `home` comes from, and both have
+       already written it by the time this runs. */
+    function updatePlane(mesh, gridFade) {
+        const home = mesh.userData.home;
+        /* Camera looks down -Z, so a plane is in front when its z is less than
+           the camera's. Planes behind get no opacity and no texture — they've
+           been flown past and aren't drawable anyway, so this keeps the load
+           budget on what's ahead.
+           Depth is measured from home, not the rendered position: a plane
+           collapsing toward the anchor must keep the visibility it had where it
+           lives, or it would blink out mid-flight. */
+        const forward = basePos.z - home.z;
+        const absDepth = Math.abs(home.z - basePos.z);
+
+        let depthFade;
+        if (forward < 0 || absDepth > DEPTH_FADE_END || absDepth < NEAR_FADE_CUT) {
+            /* behind the camera, past the far fade, or so close it would fill
+               the screen — draw nothing */
+            depthFade = 0;
+        } else if (absDepth < NEAR_FADE_FULL) {
+            /* ramping up out of the near-fade zone as it recedes */
+            depthFade = (absDepth - NEAR_FADE_CUT) /
+                (NEAR_FADE_FULL - NEAR_FADE_CUT);
+        } else if (absDepth > DEPTH_FADE_START) {
+            depthFade = 1 - (absDepth - DEPTH_FADE_START) /
+                (DEPTH_FADE_END - DEPTH_FADE_START);
+        } else {
+            depthFade = 1;
+        }
+        depthFade *= depthFade;
+
+        const target = Math.min(gridFade, depthFade) * fadeState.filterFade;
+
+        /* Only pull a texture once the plane is prominent enough to be worth a
+           download — see REQUEST_THRESHOLD. */
+        if (target > REQUEST_THRESHOLD && !mesh.userData.requested) {
+            requestTexture(mesh, mesh.userData.src);
+        }
+
+        /* Gather: slide the plane from home to its own spot in the cluster and
+           shrink it, holding full opacity the whole way — the images gather,
+           they don't dissolve. */
+        const ct = frameCollecting ? meshCollect(mesh.userData.phase) : 0;
+        const shrink = 1 - ct * (1 - COLLECT_SCALE);
+        const pile = mesh.userData.pile;
+
+        /* Mix: turn the tile's place in the cluster around the anchor, further
+           at the centre than at the rim, and tumble it on its own axis as it
+           goes. */
+        let pileX = pile.x;
+        let pileY = pile.y;
+        if (collect.swirl !== 0) {
+            const a = collect.swirl * (CHURN_CORE - pile.r);
+            const cos = Math.cos(a);
+            const sin = Math.sin(a);
+            pileX = pile.x * cos - pile.y * sin;
+            pileY = pile.x * sin + pile.y * cos;
+        }
+        /* Two rotations, each owned by one end of the move: the cluster's tumble
+           scaled by ct so it unwinds to nothing as the plane flies back out
+           (otherwise the swirl's final value leaves the settled field at a
+           tilt), and the reel's lean into its spine scaled by the inverse, so a
+           strip image is upright-on-the-curve at rest and surrenders that as it
+           gathers. Chunk planes carry lean 0 and only ever see the first. */
+        let rot = collect.swirl * pile.spin * ct + mesh.userData.lean * (1 - ct);
+        let px = home.x + (anchorWorld.x + pileX * framePileScale - home.x) * ct;
+        let py = home.y + (anchorWorld.y + pileY * framePileScale - home.y) * ct;
+        let pz = home.z + (anchorWorld.z + pile.z - home.z) * ct;
+        let sh = mesh.userData.size * shrink;
+
+        /* Focus rides on top of all of the above, and only ever on one plane.
+           It blends from wherever the plane already is, so opening and closing
+           read as the same image travelling rather than a new one appearing. */
+        if (focus.amount > 0 && mesh === focusMesh) {
+            const f = focus.amount;
+            const fh = Math.min(focusMaxH, focusMaxW / mesh.userData.aspect);
+            px += (focusTarget.x - px) * f;
+            py += (focusTarget.y - py) * f;
+            pz += (focusTarget.z - pz) * f;
+            sh += (fh - sh) * f;
+            /* Square up as it opens — a tilted hero image looks like an error. */
+            rot *= 1 - f;
+        }
+
+        mesh.rotation.z = rot;
+        mesh.position.set(px, py, pz);
+        mesh.scale.set(sh * mesh.userData.aspect, sh, 1);
+
+        const reveal = mesh.userData.hasTexture ? target : 0;
+        mesh.userData.opacity += (reveal - mesh.userData.opacity) * 0.18;
+        /* The pinch is applied after the smoothing lerp, never through it: the
+           lerp is there to ease chunk and depth fades, and running the swap dip
+           through it would leave planes still faintly visible at the moment the
+           pool changes underneath. */
+        let alpha = mesh.userData.opacity * collect.pinch;
+
+        if (focus.amount > 0) {
+            /* The opened plane goes fully solid whatever its depth fade said —
+               it is no longer part of the field — and takes the rest with it. */
+            alpha = mesh === focusMesh
+                ? alpha + (1 - alpha) * focus.amount
+                : alpha * (1 - focus.amount);
+        }
+
+        mesh.material.opacity = alpha;
+        mesh.visible = alpha > INVIS_THRESHOLD;
+    }
+
     frame();
 
     /* ---------- public API ---------- */
@@ -912,11 +1524,21 @@ export function createInfiniteCanvas(options) {
            that corner, holds there, swaps behind a short dip, and scatters back
            out into a re-seeded layout. Returns the timeline so the menu can stay
            locked until it lands. */
-        setFilter: function (nextImages, anchor) {
+        setFilter: function (nextImages, opts) {
             /* Start the download now, while the outgoing images still have the
                whole gather and hold to play out — that head start is most of
                what the spread needs to come back full. */
             prefetchSources(nextImages);
+
+            const o = opts || {};
+            const anchor = o.anchor;
+            const wantsReel = o.layout === "reel";
+
+            /* Selection belongs to the unfiltered canvas only, so drop whatever
+               is selected or open and let the caller say whether the view being
+               switched to gets it back. */
+            cancelFocus();
+            selectEnabled = Boolean(o.selectable);
 
             const tl = window.gsap.timeline();
             let swapped = false;
@@ -961,8 +1583,33 @@ export function createInfiniteCanvas(options) {
                 /* New seed => the images scatter into a new arrangement rather
                    than dropping back into the outgoing set's slots. */
                 layoutSalt = (layoutSalt + 1) >>> 0;
+
+                /* Whichever layout is going, tear the other one down first —
+                   the two never coexist. Both leave their planes at the pile
+                   (ct is 1 here), so the spread that follows carries the new
+                   set out of the cluster either way; the only difference is
+                   where "out" is. */
                 clearChunks();
-                updateChunks();
+                clearReel();
+                reelActive = wantsReel;
+                if (wantsReel) {
+                    reelSide = o.side || "right";
+                    buildReel();
+                    /* Nothing left to fly through, and a leftover fling would
+                       drag the strip's frame with it. */
+                    targetVel.x = targetVel.y = targetVel.z = 0;
+                    velocity.x = velocity.y = velocity.z = 0;
+                    scrollAccum = 0;
+                } else {
+                    updateChunks();
+                }
+
+                /* The new layout exists as of here, so anything outside the
+                   canvas that belongs to it — the filter's copy panel — can
+                   start arriving. Fired ahead of the readiness wait below on
+                   purpose: that gives the copy the rest of the mix and the whole
+                   spread to fade up, instead of landing after the images have. */
+                if (typeof o.onSwap === "function") o.onSwap();
 
                 /* Hold in the mix until enough of the new pool has decoded, so
                    the cluster resolves carrying images rather than empty
@@ -1039,15 +1686,20 @@ export function createInfiniteCanvas(options) {
         destroy: function () {
             running = false;
             applyBlur(0);
+            cancelFocus();
+            if (options.focusIndicator) {
+                options.focusIndicator.classList.remove("is-visible");
+            }
             window.removeEventListener("resize", onResize);
             window.removeEventListener("mousemove", onMouseMove);
             el.removeEventListener("pointerdown", onPointerDown);
             el.removeEventListener("pointermove", onPointerMove);
             el.removeEventListener("pointerup", onPointerUp);
-            el.removeEventListener("pointercancel", onPointerUp);
-            el.removeEventListener("pointerleave", onPointerUp);
+            el.removeEventListener("pointercancel", endDrag);
+            el.removeEventListener("pointerleave", endDrag);
             el.removeEventListener("wheel", onWheel);
             clearChunks();
+            clearReel();
             textureCache.forEach(function (t) { if (t) t.dispose(); });
             textureCache.clear();
             geometry.dispose();

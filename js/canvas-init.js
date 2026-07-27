@@ -35,6 +35,10 @@ const DEFAULT_ANCHORS = {
     team:       [ 0,  0]    /* centre       */
 };
 
+/* Fallback intro caps, matching INTRO_CAPS in tools/generate-manifest.py — used
+   only if the manifest predates the field. See samplePool. */
+const DEFAULT_INTRO_CAPS = { menu: 2 };
+
 /* Hover only counts as intent after this long, so sweeping the pointer down the
    option list doesn't kick off a download for every filter at once. */
 const PREFETCH_DWELL_MS = 140;
@@ -45,12 +49,40 @@ function imagesForFilter(manifest, filterId) {
     });
 }
 
+function filterById(manifest, filterId) {
+    return manifest.filters.find(function (f) { return f.id === filterId; });
+}
+
 function anchorForFilter(manifest, filterId) {
-    const filter = manifest.filters.find(function (f) { return f.id === filterId; });
+    const filter = filterById(manifest, filterId);
     if (filter && Array.isArray(filter.anchor) && filter.anchor.length === 2) {
         return filter.anchor;
     }
     return DEFAULT_ANCHORS[filterId] || [0, 0];
+}
+
+/* What the images do once they've gathered — "reel" for a scrolling strip,
+   "scatter" (the default) to fly back out into the 3D field. */
+function layoutForFilter(manifest, filterId) {
+    const filter = filterById(manifest, filterId);
+    return (filter && filter.layout) || "scatter";
+}
+
+/* Which edge a reel strip runs along. */
+function sideForFilter(manifest, filterId) {
+    const filter = filterById(manifest, filterId);
+    return (filter && filter.side) || "right";
+}
+
+const OPPOSITE = { left: "right", right: "left", top: "bottom", bottom: "top" };
+
+/* Where the filter's copy panel goes: opposite the strip, so the words sit in
+   the half of the frame the images have left empty. Derived rather than
+   declared, so the manifest's `side` is the only place the pairing lives. */
+function panelSideForFilter(manifest, filterId) {
+    const filter = filterById(manifest, filterId);
+    if (!filter || filter.layout !== "reel") return "left";
+    return OPPOSITE[filter.side] || "left";
 }
 
 /* Fisher-Yates, in place */
@@ -67,22 +99,38 @@ function shuffle(arr) {
 /* At most POOL_LIMIT images, dealt round-robin from the folders `entries`
    spans. Round-robin rather than a flat random sample so every folder is
    represented no matter how lopsided the folder sizes are — a flat sample of 60
-   from 187 would under-serve beverages (17 files) and could miss it outright.
+   from 202 would under-serve the small folders and could miss one outright.
    Re-shuffled on every call, so each visit — and each return to the same filter
-   — draws a different set. */
-function samplePool(entries, limit) {
-    if (entries.length <= limit) return shuffle(entries.slice());
+   — draws a different set.
 
+   `caps` optionally limits what a given folder may contribute (e.g. { menu: 2 }
+   for the opening view). A capped folder still gets dealt into the rotation, so
+   it is present but not prominent; the images the cap holds back are exactly
+   what makes choosing that folder's filter worth doing. Caps are for the
+   unfiltered view only — pass nothing when building a filter's own pool. */
+function samplePool(entries, limit, caps) {
     const byFolder = new Map();
     entries.forEach(function (img) {
         if (!byFolder.has(img.folder)) byFolder.set(img.folder, []);
         byFolder.get(img.folder).push(img);
     });
 
-    /* Shuffle within each folder, then shuffle the folder order too, so the
-       remainder (when the limit doesn't divide evenly) doesn't always land on
-       the same folders. */
-    const buckets = shuffle(Array.from(byFolder.values()).map(shuffle));
+    /* Shuffle within each folder, then apply that folder's cap — shuffle first
+       so a capped folder still contributes a *different* couple of images each
+       time rather than the same two. */
+    const buckets = [];
+    byFolder.forEach(function (list, folder) {
+        const cap = caps && caps[folder];
+        const shuffled = shuffle(list.slice());
+        buckets.push(cap > 0 ? shuffled.slice(0, cap) : shuffled);
+    });
+
+    const available = buckets.reduce(function (n, b) { return n + b.length; }, 0);
+    if (available <= limit) return shuffle([].concat.apply([], buckets));
+
+    /* Shuffle the folder order too, so the remainder (when the limit doesn't
+       divide evenly) doesn't always land on the same folders. */
+    shuffle(buckets);
 
     const out = [];
     let depth = 0;
@@ -102,15 +150,19 @@ function samplePool(entries, limit) {
 
 /* Builds the collapse/expand Menu: collapsed it shows "Menu" (or
    "Menu — the Experience" once something is chosen); clicking expands the
-   option list; choosing one fades the canvas, updates the label, and
-   collapses. `onSelect` returns the GSAP timeline so we can lock out further
-   clicks until the fade finishes. `onHover` gets a head start on the images for
-   an option the pointer is resting on, so a switch has something to show. */
-function buildMenu(manifest, onSelect, onHover) {
+   option list; choosing one moves the canvas, updates the label, and collapses.
+   Once a filter is set an X appears beside the label to clear back to the full
+   library. Handlers:
+     onSelect(filterId) -> timeline   run a switch; we stay locked until it lands
+     onClear(anchor)    -> timeline   same, back to unfiltered, gathering at the
+                                      corner of the filter being cleared
+     onHover(filterId)                head start on an option's images */
+function buildMenu(manifest, handlers) {
     const menu = document.getElementById("canvas-menu");
     const toggle = document.getElementById("canvas-menu-toggle");
     const label = document.getElementById("canvas-menu-label");
     const optionsWrap = document.getElementById("canvas-menu-options");
+    const clearBtn = document.getElementById("canvas-menu-clear");
     if (!menu || !toggle || !label || !optionsWrap) return;
 
     const buttons = manifest.filters.map(function (filter) {
@@ -134,6 +186,30 @@ function buildMenu(manifest, onSelect, onHover) {
         toggle.setAttribute("aria-expanded", String(open));
     }
 
+    /* Label, pressed states and the X's presence all follow from one place, so
+       selecting and clearing can't drift out of sync. `btn` is null when
+       clearing. */
+    function setActive(filterId, btn) {
+        current = filterId;
+        label.textContent = filterId ? BASE_LABEL + " — " + btn.textContent : BASE_LABEL;
+        buttons.forEach(function (b) {
+            const active = b === btn;
+            b.classList.toggle("is-active", active);
+            b.setAttribute("aria-pressed", String(active));
+        });
+        menu.classList.toggle("has-filter", Boolean(filterId));
+    }
+
+    /* Lock the control for the length of the transition it starts. */
+    function run(timeline) {
+        busy = true;
+        if (timeline && timeline.eventCallback) {
+            timeline.eventCallback("onComplete", function () { busy = false; });
+        } else {
+            busy = false;
+        }
+    }
+
     toggle.addEventListener("click", function (e) {
         e.stopPropagation();
         if (busy) return;
@@ -145,24 +221,25 @@ function buildMenu(manifest, onSelect, onHover) {
         if (!btn || busy) return;
 
         if (btn.dataset.filter !== current) {
-            current = btn.dataset.filter;
-            label.textContent = BASE_LABEL + " — " + btn.textContent;
-            buttons.forEach(function (b) {
-                const active = b === btn;
-                b.classList.toggle("is-active", active);
-                b.setAttribute("aria-pressed", String(active));
-            });
-
-            busy = true;
-            const done = onSelect(current);
-            if (done && done.eventCallback) {
-                done.eventCallback("onComplete", function () { busy = false; });
-            } else {
-                busy = false;
-            }
+            setActive(btn.dataset.filter, btn);
+            run(handlers.onSelect(current));
         }
         setOpen(false);
     });
+
+    if (clearBtn) {
+        clearBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (busy || !current) return;
+            /* Read the outgoing filter's corner before dropping it: clearing
+               gathers where that filter gathered, so the move reads as the
+               reverse of choosing it rather than as a separate gesture. */
+            const anchor = anchorForFilter(manifest, current);
+            setActive(null, null);
+            setOpen(false);
+            run(handlers.onClear(anchor));
+        });
+    }
 
     /* Click anywhere else, or press Escape, to collapse */
     document.addEventListener("click", function (e) {
@@ -174,13 +251,13 @@ function buildMenu(manifest, onSelect, onHover) {
 
     /* Dwell on an option (pointer or keyboard focus) and its images start
        downloading, so by the time it's clicked the collect has less to wait on. */
-    if (typeof onHover === "function") {
+    if (typeof handlers.onHover === "function") {
         let dwell = null;
         buttons.forEach(function (btn) {
             function arm() {
                 if (btn.dataset.filter === current) return;
                 clearTimeout(dwell);
-                dwell = setTimeout(function () { onHover(btn.dataset.filter); },
+                dwell = setTimeout(function () { handlers.onHover(btn.dataset.filter); },
                     PREFETCH_DWELL_MS);
             }
             btn.addEventListener("mouseenter", arm);
@@ -208,12 +285,23 @@ async function boot() {
         return;
     }
 
+    const introCaps = manifest.introCaps || DEFAULT_INTRO_CAPS;
+
     /* The label stays "Menu" until a filter is chosen, so the opening view is
        the whole library — every folder — not one filter's slice. Capped and
-       re-drawn per visit, so the opening field is a different 60 every time. */
+       re-drawn per visit, so the opening field is a different 60 every time, and
+       folder-capped so the menu shots appear without giving themselves away. */
     const canvas = createInfiniteCanvas({
         container: container,
-        images: samplePool(manifest.images, POOL_LIMIT)
+        images: samplePool(manifest.images, POOL_LIMIT, introCaps),
+        /* Marker the canvas parks over the selected photo */
+        focusIndicator: document.getElementById("canvas-focus-plus"),
+        /* An image has been opened (or closed) — main.js clears the chrome */
+        onFocusChange: function (focused) {
+            document.dispatchEvent(new CustomEvent("counter:photo-focus", {
+                detail: { focused: focused }
+            }));
+        }
     });
 
     /* --- load complete (real, or backstopped if the pool stalls) --- */
@@ -243,22 +331,61 @@ async function boot() {
     const pending = new Map();
     function poolFor(filterId) {
         if (!pending.has(filterId)) {
+            /* No caps here: a filter shows its folder in full. That's the whole
+               point of the intro cap — the menu shots held back from the opening
+               view are what choosing "the Menus" reveals. */
             pending.set(filterId, samplePool(imagesForFilter(manifest, filterId), POOL_LIMIT));
         }
         return pending.get(filterId);
     }
 
-    buildMenu(
-        manifest,
-        function (filterId) {
+    /* Two beats the rest of the page hangs off (main.js owns the overlay and the
+       copy panels; this module owns the canvas):
+         filter-change — a switch has been asked for. filterId is null when
+                         clearing back to the whole library.
+         filter-swap   — the new pool is live on the canvas. */
+    function emit(name, filterId) {
+        document.dispatchEvent(new CustomEvent(name, {
+            detail: {
+                filterId: filterId,
+                panelSide: filterId ? panelSideForFilter(manifest, filterId) : null
+            }
+        }));
+    }
+
+    buildMenu(manifest, {
+        onSelect: function (filterId) {
             const pool = poolFor(filterId);
             pending.delete(filterId);
-            return canvas.setFilter(pool, anchorForFilter(manifest, filterId));
+            emit("counter:filter-change", filterId);
+            return canvas.setFilter(pool, {
+                anchor: anchorForFilter(manifest, filterId),
+                layout: layoutForFilter(manifest, filterId),
+                side: sideForFilter(manifest, filterId),
+                /* Picking a photo out of a filter's composition means nothing,
+                   so selection is off for every filtered view. */
+                selectable: false,
+                onSwap: function () { emit("counter:filter-swap", filterId); }
+            });
         },
-        function (filterId) {
+
+        onClear: function (anchor) {
+            emit("counter:filter-change", null);
+            /* A fresh draw of the library, capped as on first load — clearing
+               returns you to the opening view, not to the exact one you left. */
+            return canvas.setFilter(samplePool(manifest.images, POOL_LIMIT, introCaps), {
+                anchor: anchor,
+                layout: "scatter",
+                /* Back on the whole library, so photos are selectable again */
+                selectable: true,
+                onSwap: function () { emit("counter:filter-swap", null); }
+            });
+        },
+
+        onHover: function (filterId) {
             canvas.prefetch(poolFor(filterId));
         }
-    );
+    });
 
     /* Loader handshake:
        here     --counter:load-progress--->  (available; main runs its own counter)

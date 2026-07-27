@@ -283,29 +283,41 @@ body.is-immersive .definition-text {
     pointer-events: auto;
 }
 
+/* The pill itself. Holds the toggle and the clear button as siblings, so the X
+   sits inside the border rather than floating off the end of it. */
+.canvas-menu-bar {
+    display: inline-flex;
+    align-items: center;
+    min-width: 200px;
+    background: var(--bg);
+    border: 1px solid var(--fg-20);
+    border-radius: 999px;
+    transition: border-color 0.3s ease, background-color var(--theme-fade);
+}
+
+.canvas-menu-bar:hover,
+.canvas-menu.is-open .canvas-menu-bar {
+    border-color: var(--fg-70);
+}
+
+/* Transparent inside the pill — the wrapper draws the chrome now. */
 .canvas-menu-toggle {
+    flex: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 200px;
     padding: 11px 22px;
     cursor: pointer;
-    background: var(--bg);
+    background: none;
     color: var(--fg);
-    border: 1px solid var(--fg-20);
+    border: none;
     border-radius: 999px;
     font-family: var(--font-display);
     font-size: 12px;
     letter-spacing: 1px;
     text-transform: uppercase;
     white-space: nowrap;
-    transition: border-color 0.3s ease, background-color var(--theme-fade),
-                color var(--theme-fade);
-}
-
-.canvas-menu-toggle:hover,
-.canvas-menu.is-open .canvas-menu-toggle {
-    border-color: var(--fg-70);
+    transition: color var(--theme-fade);
 }
 
 /* Options stack above the toggle and float, so opening never shifts the
@@ -366,6 +378,180 @@ body.is-immersive .definition-text {
 
 .canvas-menu-option.is-active {
     opacity: 1;
+}
+
+.canvas-menu-clear {
+    flex: none;
+    width: 0;
+    height: 26px;
+    margin-right: 0;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--fg);
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.75);
+    transition: opacity 0.3s ease, transform 0.3s ease, width 0.3s ease,
+                margin-right 0.3s ease, visibility 0s linear 0.3s,
+                color var(--theme-fade);
+}
+
+.canvas-menu.has-filter .canvas-menu-clear {
+    width: 26px;
+    margin-right: 14px;
+    opacity: 0.7;
+    visibility: visible;
+    transform: scale(1);
+    transition: opacity 0.3s ease, transform 0.3s ease, width 0.3s ease,
+                margin-right 0.3s ease, visibility 0s linear 0s,
+                color var(--theme-fade);
+}
+
+/* The label keeps its own padding, so trim the gap the X would otherwise add
+   between the two. */
+.canvas-menu.has-filter .canvas-menu-toggle {
+    padding-right: 8px;
+}
+
+.canvas-menu.has-filter .canvas-menu-clear:hover,
+.canvas-menu.has-filter .canvas-menu-clear:focus-visible {
+    opacity: 1;
+}
+
+.canvas-menu-clear svg {
+    width: 20px;
+    height: 20px;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.4;
+    stroke-linecap: round;
+}
+
+/* ---------- SELECTED PHOTO MARKER ---------- */
+/* Positioned entirely from JS (translate3d to the photo's projected centre), so
+   left/top stay at 0 and the transform is the only thing that moves. */
+.canvas-focus-plus {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 126;
+    /* The photo behind it is the click target — see the canvas hit-test */
+    pointer-events: none;
+    color: #fff;
+    /* mix-blend-mode keeps it legible on a light photo as well as a dark one */
+    mix-blend-mode: difference;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.canvas-focus-plus.is-visible {
+    opacity: 0.9;
+}
+
+.canvas-focus-plus svg {
+    display: block;
+    width: 46px;
+    height: 46px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.1;
+    stroke-linecap: round;
+}
+
+/* ---------- OPENED PHOTO ---------- */
+/* The chrome is faded to nothing by GSAP; this stops the invisible layers from
+   swallowing the click that closes the photo. */
+body.photo-focus .brand-mark,
+body.photo-focus .site-grid,
+body.photo-focus .bottom-bar,
+body.photo-focus .filter-panels,
+body.photo-focus .hero-definition-overlay {
+    pointer-events: none;
+}
+
+.filter-panels {
+    position: fixed;
+    inset: 0;
+    z-index: 125;
+    pointer-events: none;
+}
+
+/* Placement comes from data-side, which main.js stamps as the opposite of that
+   filter's strip. Note there is no `transform` in any of these rules: GSAP
+   animates the panels in on x/y, and a CSS transform is exactly what it would
+   overwrite — so centring is done with flexbox and auto margins instead. */
+.filter-panel {
+    position: absolute;
+    color: var(--fg);
+    /* GSAP owns opacity/visibility from here (autoAlpha); this is only the
+       resting state before any filter is chosen. */
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Side columns: span the full height, centre the copy within it. */
+.filter-panel[data-side="left"],
+.filter-panel[data-side="right"] {
+    top: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: min(40vw, 700px);
+}
+
+.filter-panel[data-side="left"]  { left: 6vw; }
+.filter-panel[data-side="right"] { right: 6vw; }
+
+/* Bands: a centred block clear of the horizontal strip. */
+.filter-panel[data-side="top"],
+.filter-panel[data-side="bottom"] {
+    left: 0;
+    right: 0;
+    width: min(64vw, 860px);
+    margin: 0 auto;
+}
+
+.filter-panel[data-side="top"]    { top: 9vh; }
+/* Sits above the menu pill rather than behind it */
+.filter-panel[data-side="bottom"] { bottom: 16vh; }
+
+.filter-panel-title {
+    font-family: var(--font-display);
+    font-size: clamp(16px, 1.15vw, 20px);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: normal;
+    margin: 0 0 18px;
+}
+
+.filter-panel-body {
+    font-size: clamp(14px, 1.15vw, 18px);
+    line-height: 1.85;
+    letter-spacing: 0.04em;
+    margin: 0;
+    opacity: 0.75;
+}
+
+/* Panels with several paragraphs (the Details, the Beverages) need the break */
+.filter-panel-body + .filter-panel-body {
+    margin-top: 1.15em;
+}
+
+/* The layer is click-through so the canvas stays draggable behind it; links
+   have to opt back in. */
+.filter-panel a {
+    pointer-events: auto;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 /* ---------- LIGHT / DARK THEME SWITCH ---------- */
