@@ -456,20 +456,11 @@ export function createInfiniteCanvas(options) {
     const loader = new THREE.TextureLoader();
     const textureCache = new Map();
     const loadQueue = [];
-    /* Sources already queued as background (mesh-less) jobs, so repeated
-       prefetch calls — hovering the same menu item twice — don't pile up
-       duplicate downloads. */
     const prefetched = new Set();
     let activeLoads = 0;
 
     function pumpQueue() {
         while (activeLoads < MAX_CONCURRENT_LOADS && loadQueue.length) {
-            /* Serve the pending job nearest the camera first, so images around
-               the viewport resolve before the deep / edge field. Background
-               preload jobs (mesh === null) carry no position and sort last, so
-               they only fill the pipe once the visible field is served. Stale
-               jobs (the plane was recycled) and ones already cached by another
-               job are dropped in passing. */
             let bestIdx = -1;
             let bestDist = Infinity;
             for (let i = 0; i < loadQueue.length; i++) {
@@ -487,9 +478,6 @@ export function createInfiniteCanvas(options) {
                 }
                 let d = Infinity;
                 if (j.mesh) {
-                    /* Sort on the plane's home position, not its rendered one —
-                       mid-transition every plane is bunched at the anchor and
-                       those coordinates say nothing about what to load first. */
                     const home = j.mesh.userData.home;
                     const dx = home.x - basePos.x;
                     const dy = home.y - basePos.y;
@@ -501,8 +489,6 @@ export function createInfiniteCanvas(options) {
                     bestIdx = i;
                 }
             }
-            /* All that's left is background preload (every d === Infinity) —
-               take them in order. */
             if (bestIdx === -1) {
                 if (!loadQueue.length) break;
                 bestIdx = 0;
@@ -517,10 +503,6 @@ export function createInfiniteCanvas(options) {
                     texture.colorSpace = THREE.SRGBColorSpace;
                     texture.generateMipmaps = true;
                     texture.minFilter = THREE.LinearMipmapLinearFilter;
-                    /* Push it to the GPU now, while the loader curtain still hides
-                       the scene. Otherwise the upload (+ mipmap gen) happens the
-                       first frame a plane using it renders — i.e. mid-zoom, as new
-                       chunks scroll in — which is exactly the stutter we saw. */
                     try { renderer.initTexture(texture); } catch (e) {}
                     textureCache.set(job.src, texture);
                     if (job.mesh) applyTexture(job.mesh, job.src, texture);
@@ -543,10 +525,6 @@ export function createInfiniteCanvas(options) {
         mesh.material.map = texture;
         mesh.material.needsUpdate = true;
         mesh.userData.hasTexture = true;
-
-        /* Keep the image's aspect ratio: the chunk picks a height, width follows.
-           Only the ratio is recorded here — the frame loop composes the actual
-           scale, since the collect transition shrinks planes on top of it. */
         const image = texture.image;
         if (image && image.height) {
             mesh.userData.aspect = image.width / image.height;
@@ -581,9 +559,6 @@ export function createInfiniteCanvas(options) {
     }
 
     function releaseMesh(mesh) {
-        /* The pool recycles planes as chunks are culled. If the selected one is
-           going back, the selection has to go with it — otherwise the plus
-           tracks a plane that has become some other image. */
         if (mesh === focusMesh) cancelFocus();
         scene.remove(mesh);
         mesh.material.map = null;
@@ -598,11 +573,8 @@ export function createInfiniteCanvas(options) {
         pool.push(mesh);
     }
 
-    /* ---------- chunks ---------- */
     const chunks = new Map();
-    /* The image set the active filter exposes. */
     let activePool = images.slice();
-    /* Re-seeds the whole layout on every filter switch — see hashCoords. */
     let layoutSalt = 0;
 
     function chunkKey(cx, cy, cz) {
@@ -614,9 +586,6 @@ export function createInfiniteCanvas(options) {
         if (!activePool.length) return meshes;
 
         const rng = mulberry32(hashCoords(cx, cy, cz, layoutSalt));
-
-        /* Pick ITEMS_PER_CHUNK distinct cells via a deterministic shuffle, so
-           every plane lands in its own slice of the chunk. */
         const cellCount = GRID_X * GRID_Y * GRID_Z;
         const count = Math.min(ITEMS_PER_CHUNK, cellCount);
         const cells = [];
@@ -630,12 +599,6 @@ export function createInfiniteCanvas(options) {
 
         for (let i = 0; i < count; i++) {
             const size = PLANE_MIN + rng() * (PLANE_MAX - PLANE_MIN);
-
-            /* Decode the flat cell index into grid coords, then place the plane
-               at its cell centre plus a bounded jitter. The chunk's slab is
-               centred on its integer coordinate ((c - 0.5 + f) spans
-               [c-0.5, c+0.5]), so the field stays symmetric around the camera
-               and still tiles seamlessly with neighbouring chunks. */
             const cell = cells[i];
             const gx = cell % GRID_X;
             const gy = Math.floor(cell / GRID_X) % GRID_Y;
@@ -649,24 +612,14 @@ export function createInfiniteCanvas(options) {
             const py = (cy - 0.5 + fy) * CHUNK_SIZE;
             const pz = (cz - 0.5 + fz) * CHUNK_SIZE;
             const mediaIndex = Math.floor(rng() * 1000000) % activePool.length;
-            /* Fixed per plane: its place in the collect/spread stagger, so the
-               field gathers and scatters in waves instead of as one block. */
             const phase = rng();
-
-            /* And its spot in the gathered cluster, as a point in the unit disc
-               — the frame loop scales it to the viewport. sqrt() on the radius
-               spreads the points evenly instead of crowding them at the centre. */
             const pileAngle = rng() * Math.PI * 2;
             const pileRadius = Math.sqrt(rng());
-            /* Which way, and how fast, this tile tumbles during the mix. */
             const pileSpin = (rng() * 2 - 1) * CHURN_TUMBLE;
 
             const mesh = acquireMesh();
             mesh.position.set(px, py, pz);
             mesh.scale.set(size, size, 1);
-            /* Home is the plane's real place in the world. mesh.position is a
-               render-time value the transition slides toward the anchor, so all
-               world reasoning — depth fade, load priority — reads home. */
             mesh.userData.home = { x: px, y: py, z: pz };
             mesh.userData.pile = {
                 x: Math.cos(pileAngle) * pileRadius,
@@ -723,26 +676,12 @@ export function createInfiniteCanvas(options) {
         });
     }
 
-    /* ---------- reel ----------
-       One plane per pool image, in pool order, living outside the chunk field.
-       Positions are recomputed every frame from the scroll offset, so `home` is
-       dynamic here where a chunk plane's is fixed — everything downstream
-       (gather, depth fade, load priority) reads `home` and so needs no special
-       case for the reel at all. */
     let reelActive = false;
-    /* Which edge the strip runs along: "left"/"right" scroll vertically,
-       "top"/"bottom" horizontally. */
     let reelSide = "right";
     const reelItems = [];
-    /* Slot table, sized with the reel and rewritten each frame by layoutReel:
-       where each image starts along the strip, how wide its slot is, and the
-       height it renders at. */
     let reelStart = null;
     let reelSlot = null;
     let reelSize = null;
-    /* Position along the strip, in world units, and the momentum driving it —
-       the same four-part model as the camera: wheel impulses land in `accum`,
-       bleed into `targetVel`, which `vel` chases and which decays on its own. */
     const reelScroll = { pos: 0, vel: 0, targetVel: 0, accum: 0 };
 
     function buildReel() {
@@ -755,8 +694,6 @@ export function createInfiniteCanvas(options) {
             const pileRadius = Math.sqrt(rng());
 
             const mesh = acquireMesh();
-            /* Placeholder until layoutReel runs — it is overwritten every frame
-               before anything reads it. */
             mesh.userData.home = { x: 0, y: 0, z: 0 };
             mesh.userData.pile = {
                 x: Math.cos(pileAngle) * pileRadius,
@@ -799,10 +736,6 @@ export function createInfiniteCanvas(options) {
         return reelSide === "left" || reelSide === "right";
     }
 
-    /* ---------- focus ----------
-       `focusMesh` is the selected plane (the one wearing the plus);
-       `focusZoomed` says it has been opened; `focus.amount` is the 0..1 GSAP
-       drives, which updatePlane blends position, scale and opacity against. */
     let selectEnabled = true;
     let focusMesh = null;
     let focusZoomed = false;
@@ -823,9 +756,6 @@ export function createInfiniteCanvas(options) {
         pickNdc.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
         raycaster.setFromCamera(pickNdc, camera);
 
-        /* Only planes actually readable on screen are candidates — the field is
-           full of near-transparent ones at its edges and in its depth, and
-           picking one of those would feel like clicking nothing. */
         pickList.length = 0;
         chunks.forEach(function (meshes) {
             for (let i = 0; i < meshes.length; i++) {
@@ -839,7 +769,6 @@ export function createInfiniteCanvas(options) {
     }
 
     function handleClick(e) {
-        /* Open: a click anywhere closes it. */
         if (focusZoomed) {
             exitFocus();
             return;
@@ -859,8 +788,6 @@ export function createInfiniteCanvas(options) {
     function enterFocus() {
         if (focusZoomed || !focusMesh) return;
         focusZoomed = true;
-        /* Pan and fly-through are off while an image is open — the click that
-           closes it must not also throw the camera. */
         inputEnabled = false;
         focusMesh.renderOrder = 1;
         if (typeof options.onFocusChange === "function") options.onFocusChange(true);
@@ -883,8 +810,6 @@ export function createInfiniteCanvas(options) {
         });
     }
 
-    /* Hard reset, no animation: a filter has taken over, or the selected plane
-       is being recycled out from under us. */
     function cancelFocus() {
         window.gsap.killTweensOf(focus);
         focus.amount = 0;
@@ -899,7 +824,6 @@ export function createInfiniteCanvas(options) {
         }
     }
 
-    /* Park the plus over the selected plane, in screen space. */
     function updateFocusIndicator() {
         const el = options.focusIndicator;
         if (!el) return;
@@ -925,29 +849,12 @@ export function createInfiniteCanvas(options) {
         }
     }
 
-    /* Lay the strip out for this frame: each image gets an even slot along the
-       strip, wrapped around the loop, offset across it by the spine's deviation
-       at that point.
-
-       Written in along/across terms rather than x/y so one pass serves all four
-       strips; `vertical` and `crossSign` are the only things that differ, and
-       they only bite at the two points where along/across become world axes.
-
-       Every item is placed, including the ones nowhere near the frame — they
-       simply land far along the strip and the renderer frustum-culls them.
-       Placing only the visible few would be cheaper, but the pool is also what
-       the gather collects into the corner: cull it here and the cluster would
-       shrink from a full pile to a handful of images at the swap.
-
-       Wrapping is seamless as long as half the loop clears the screen, i.e.
-       roughly three images or more in the pool. */
+    
     function layoutReel(halfW, halfH) {
         const n = reelItems.length;
         if (!n) return;
 
         const vertical = reelSide === "left" || reelSide === "right";
-        /* Which way along the cross axis the strip is pushed. Screen y is up in
-           world space, so "top" is positive and "bottom" negative. */
         const crossSign = (reelSide === "right" || reelSide === "top") ? 1 : -1;
 
         const halfAlong = vertical ? halfH : halfW;
@@ -962,11 +869,6 @@ export function createInfiniteCanvas(options) {
         const spanFull = halfAlong * 2 * REEL_SPAN;
         const crossBase = crossSign * box.inset * halfCross;
 
-        /* Slot table. Each image is fitted to the box first, then given a slot
-           that either matches what it actually renders (snug) or a full box
-           (not). Recomputed every frame rather than cached against the aspects:
-           n is capped at the pool size, so a running total is cheaper than
-           working out whether a texture has landed since last time. */
         let loop = 0;
         for (let i = 0; i < n; i++) {
             const aspect = reelItems[i].userData.aspect;
@@ -978,24 +880,17 @@ export function createInfiniteCanvas(options) {
             loop += reelSlot[i];
         }
 
-        /* How far ahead along the spine to sample for the tangent, in viewBox y. */
         const AHEAD = 2;
         const dAlong = (AHEAD / 100) * spanFull;
 
         for (let i = 0; i < n; i++) {
             const mesh = reelItems[i];
 
-            /* Signed distance from the centre of the frame along the strip,
-               wrapped into [-loop/2, loop/2) so it runs endlessly both ways. */
             const centre = reelStart[i] + reelSlot[i] * 0.5;
             let d = (centre - reelScroll.pos) % loop;
             if (d < -loop * 0.5) d += loop;
             else if (d >= loop * 0.5) d -= loop;
 
-            /* Distance along the spine as viewBox y (0 at the start of the
-               strip, 100 at the end — SVG's direction, hence the negated d).
-               Items past either end read the clamped end deviation, which keeps
-               the strip straight where it has run off the path. */
             const vy = (0.5 - d / spanFull) * 100;
             const dev = (spineX(REEL_SPINE, vy) - 50) / 50 * halfCross;
             const cross = crossBase + dev;
@@ -1005,16 +900,9 @@ export function createInfiniteCanvas(options) {
             home.y = camera.position.y + (vertical ? d : cross);
             home.z = camera.position.z - REEL_DEPTH;
 
-            /* Fitted to the box above, where the slot width was worked out from
-               the same number. */
             mesh.userData.size = reelSize[i];
 
-            /* Lean into the spine's slope, so the strip visibly rides the curve
-               rather than sliding along it. With the tangent as (dCross across,
-               dAlong along), the plane turns by -atan(dCross/dAlong) — the same
-               expression on either axis, since both are written in the strip's
-               own frame. Taken at a fraction of the true angle: the full tangent
-               looks like a mistake, a hint of it reads. */
+       
             const dCross = (spineX(REEL_SPINE, vy + AHEAD) -
                 spineX(REEL_SPINE, vy)) / 50 * halfCross;
             mesh.userData.lean = -REEL_TILT * Math.atan2(dCross, dAlong);
@@ -1026,20 +914,12 @@ export function createInfiniteCanvas(options) {
             meshes.forEach(releaseMesh);
         });
         chunks.clear();
-        /* Drop the per-plane jobs — those planes are gone — but keep the
-           mesh-less prefetch jobs: during a filter switch those *are* the
-           incoming pool, queued while the outgoing images were still
-           collecting, and dropping them would restart the download from zero. */
         for (let i = loadQueue.length - 1; i >= 0; i--) {
             if (loadQueue[i].mesh) loadQueue.splice(i, 1);
         }
     }
 
-    /* ---------- preload + progress ---------- */
-    /* Queue every image in the pool as a background job while the black loading
-       screen is up (nothing is shown yet — filterFade is still 0). Progress is
-       reported so the loading counter can run 0 → 100, and onComplete fires once
-       the whole pool has settled, which is what triggers the reveal. */
+
     function preload(onProgress, onComplete) {
         if (preloadStarted) return;
         preloadStarted = true;
@@ -1062,9 +942,7 @@ export function createInfiniteCanvas(options) {
         reportProgress();
     }
 
-    /* Queue a whole image list as background jobs. Used for the intro preload
-       and, on menu hover / selection, to pull the next filter's pool while the
-       current one is still on screen — so the spread has something to show. */
+  
     function prefetchSources(list) {
         for (let i = 0; i < list.length; i++) {
             const src = list[i].src;
@@ -1075,8 +953,6 @@ export function createInfiniteCanvas(options) {
         pumpQueue();
     }
 
-    /* Enough of `list` decoded to start the spread without it reading as a
-       field of blanks filling in. */
     function poolReady(list) {
         if (!list.length) return true;
         let n = 0;
@@ -1096,7 +972,6 @@ export function createInfiniteCanvas(options) {
         }, 60);
     }
 
-    /* Recount settled images and push progress out; fire completion once. */
     function reportProgress() {
         if (!introSrcSet) return;
         let n = 0;
@@ -1110,10 +985,6 @@ export function createInfiniteCanvas(options) {
         }
     }
 
-    /* ---------- input ---------- */
-    /* Camera rests at INITIAL_CAMERA_Z; reveal() drifts it forward from there
-       through the field while the images load. Input stays off until the intro
-       finalizes, so a stray scroll can't fight the auto-drift for basePos.z. */
     const basePos = { x: 0, y: 0, z: INITIAL_CAMERA_Z };
     const velocity = { x: 0, y: 0, z: 0 };
     const targetVel = { x: 0, y: 0, z: 0 };
@@ -1122,9 +993,6 @@ export function createInfiniteCanvas(options) {
     let inputEnabled = false;
     const lastPointer = { x: 0, y: 0 };
 
-    /* Preload / reveal bookkeeping. Every pool image loads up front (progress
-       drives the loading counter); reveal() then runs once, and is guarded so a
-       repeat call can't restart the zoom. */
     let preloadStarted = false;
     let preloadDone = false;
     let fadeStarted = false;
@@ -1134,7 +1002,6 @@ export function createInfiniteCanvas(options) {
     let introSrcSet = null;
     let introTotal = 0;
 
-    /* Mouse parallax + first-move handoff */
     const mouse = { x: 0, y: 0 };
     const drift = { x: 0, y: 0 };
     let driftActive = false;
@@ -1153,32 +1020,9 @@ export function createInfiniteCanvas(options) {
     }
     window.addEventListener("mousemove", onMouseMove);
 
-    /* Global multiplier GSAP drives for the reveal fade */
     const fadeState = { filterFade: 0 };
-
-    /* Filter transition state, all driven by GSAP:
-         p      — the 0→1→0 gather progress.
-         swirl  — how far the gathered cluster has stirred (radians).
-         blur   — canvas blur in CSS px.
-         pinch  — opacity multiplier at the peak of the mix.
-       swirl / blur / pinch are separate from `p` because the cluster has to stay
-       parked and visible at p === 1 while all three do their work; that beat is
-       what hides the pool swap.
-       `anchorNdc` is where the images gather, in normalised screen coords
-       (-1..1, y up), so each menu item can claim its own corner; the world point
-       is recomputed off the live camera every frame, which keeps the cluster
-       pinned to that corner of the frame even as the camera moves under it. */
     const collect = { p: 0, pinch: 1, swirl: 0, blur: 0 };
-
-    /* Peak blur is eased off on touch hardware, where a full-viewport filter is
-       the most expensive thing on screen. */
     const blurPeak = isTouch ? BLUR_MAX * 0.55 : BLUR_MAX;
-
-    /* The blur rides on the canvas element rather than the material: the whole
-       field is gathered into the cluster when it applies, so blurring the layer
-       and blurring the images are the same picture — and this way it costs one
-       compositor property instead of a shader. Only written when it actually
-       changes, and dropped entirely at 0 so no filter layer outlives the move. */
     let appliedBlur = -1;
     function applyBlur(px) {
         const v = Math.round(px * 4) / 4;
@@ -1193,17 +1037,12 @@ export function createInfiniteCanvas(options) {
         return t * t * (3 - 2 * t);
     }
 
-    /* One plane's share of the global progress. Planes with a low phase lead the
-       gather and trail the scatter, which is what turns a uniform slide into a
-       stream. */
     function meshCollect(phase) {
         const t = (collect.p - phase * COLLECT_STAGGER) / (1 - COLLECT_STAGGER);
         return smoothstep(clamp(t, 0, 1));
     }
 
     function onPointerDown(e) {
-        /* Recorded even when input is off, because an open image still has to
-           be closable by clicking. */
         pressStart.x = e.clientX;
         pressStart.y = e.clientY;
         pressStart.t = performance.now();
@@ -1212,9 +1051,6 @@ export function createInfiniteCanvas(options) {
         lastPointer.x = e.clientX;
         lastPointer.y = e.clientY;
         container.classList.add("is-dragging");
-        /* Guarded like its release counterpart: capturing a pointer that isn't
-           active throws, and a failed capture only costs us drags that run off
-           the canvas — not worth taking the handler down for. */
         if (e.pointerId !== undefined && renderer.domElement.setPointerCapture) {
             try { renderer.domElement.setPointerCapture(e.pointerId); } catch (err) {}
         }
@@ -1223,10 +1059,6 @@ export function createInfiniteCanvas(options) {
     function onPointerMove(e) {
         if (!dragging) return;
         if (reelActive) {
-            /* The reel owns the gesture: dragging throws the strip instead of
-               panning a field that isn't there. The images follow the pointer,
-               so the sign flips with the axis — screen y runs opposite world y,
-               screen x runs with world x. */
             reelScroll.targetVel += reelIsVertical()
                 ? (e.clientY - lastPointer.y) * DRAG_SPEED
                 : -(e.clientX - lastPointer.x) * DRAG_SPEED;
@@ -1246,8 +1078,6 @@ export function createInfiniteCanvas(options) {
         }
     }
 
-    /* Only a real pointerup can be a click — leaving the canvas or having the
-       gesture cancelled ends the drag but selects nothing. */
     function onPointerUp(e) {
         endDrag(e);
         const moved = Math.abs(e.clientX - pressStart.x) +
@@ -1257,18 +1087,10 @@ export function createInfiniteCanvas(options) {
         }
     }
 
-    /* Wheel feeds a scroll accumulator that bleeds into Z velocity, so a flick
-       of the wheel carries you forward and coasts to a stop. In reel mode it
-       drives the strip instead — there's nothing to fly through. */
     function onWheel(e) {
         e.preventDefault();
         if (!inputEnabled) return;
         if (reelActive) {
-            /* Same impulse the fly-through gets, aimed at the strip. A vertical
-               strip is negated so scrolling down carries the images up; a
-               horizontal one advances left, which is what scrolling down means
-               on a sideways strip. Horizontal wheels / trackpad swipes feed the
-               same axis, so either gesture drives it. */
             const delta = reelIsVertical()
                 ? -e.deltaY
                 : (e.deltaX || 0) + e.deltaY;
@@ -1298,12 +1120,7 @@ export function createInfiniteCanvas(options) {
     function clamp(v, lo, hi) {
         return v < lo ? lo : v > hi ? hi : v;
     }
-
-    /* ---------- frame loop ---------- */
     let running = true;
-
-    /* Set once per frame, read by updatePlane — closure-level rather than
-       arguments so the shared per-plane path stays a plain two-arg call. */
     let framePileScale = 0;
     let frameCollecting = false;
 
@@ -1330,23 +1147,12 @@ export function createInfiniteCanvas(options) {
         targetVel.y *= VELOCITY_DECAY;
         targetVel.z *= VELOCITY_DECAY;
 
-        /* The reveal zoom is a GSAP tween straight on basePos.z (see reveal()).
-           Input is disabled through it, so velocity.z stays ~0 and the two never
-           fight over basePos.z. */
-
-        /* Parallax rides on top of basePos; chunk math stays on basePos so the
-           drift never trips chunk rebuilds */
         if (driftActive) {
             drift.x += (mouse.x * DRIFT_AMOUNT - drift.x) * DRIFT_LERP;
             drift.y += (mouse.y * DRIFT_AMOUNT - drift.y) * DRIFT_LERP;
         }
         camera.position.set(basePos.x + drift.x, basePos.y + drift.y, basePos.z);
-
-        /* The reel replaces the chunk field rather than sitting on top of it —
-           building chunks here would repopulate the scatter behind the strip. */
         if (!reelActive) updateChunks();
-
-        /* Strip momentum, stepped exactly like the camera's above. */
         reelScroll.targetVel += reelScroll.accum;
         reelScroll.accum *= SCROLL_DECAY;
         reelScroll.targetVel = clamp(reelScroll.targetVel, -MAX_VELOCITY, MAX_VELOCITY);
@@ -1358,14 +1164,6 @@ export function createInfiniteCanvas(options) {
         const ccy = Math.round(basePos.y / CHUNK_SIZE);
         const ccz = Math.round(basePos.z / CHUNK_SIZE);
 
-        /* Where the gathered cluster sits this frame: ANCHOR_DEPTH ahead of the
-           camera, pushed out toward whichever frame edge the menu item asked
-           for, with the cluster sized off the frame's smaller half extent.
-           Measured from camera.position, not basePos — parallax drift has
-           already been folded into the camera by this point, and anchoring to
-           basePos instead would let the cluster slide a good fraction of the
-           frame away from its corner (far enough to hang off the edge) as the
-           pointer moves. */
         const halfH = Math.tan((CAMERA_FOV * 0.5) * Math.PI / 180) * ANCHOR_DEPTH;
         const halfW = halfH * camera.aspect;
         framePileScale = Math.min(halfW, halfH) * PILE_SPREAD;
@@ -1374,9 +1172,6 @@ export function createInfiniteCanvas(options) {
         anchorWorld.z = camera.position.z - ANCHOR_DEPTH;
 
         frameCollecting = collect.p > 0;
-
-        /* Where an opened image goes: dead centre, as tall as it can be without
-           running off the sides. */
         const fHalfH = Math.tan((CAMERA_FOV * 0.5) * Math.PI / 180) * FOCUS_DEPTH;
         focusTarget.x = camera.position.x;
         focusTarget.y = camera.position.y;
