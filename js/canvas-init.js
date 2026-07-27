@@ -16,18 +16,97 @@ const BASE_LABEL = "Menu";
    can't hang — the reveal proceeds with whatever made it in. */
 const INTRO_SAFETY_MS = 14000;
 
+/* Ceiling on how many distinct images any one view draws from. The canvas fills
+   hundreds of planes by repeating this pool, so the cap costs nothing visually
+   while keeping the intro download (and every filter switch after it) to a fixed
+   budget instead of scaling with the library. */
+const POOL_LIMIT = 60;
+
+/* Where each menu item's images gather during a switch, in normalised screen
+   coords: x -1 = left / +1 = right, y -1 = bottom / +1 = top. Used only if the
+   manifest doesn't carry its own `anchor` — regenerate it with
+   tools/generate-manifest.py to change these. */
+const DEFAULT_ANCHORS = {
+    experience: [-1, -1],   /* bottom left  */
+    design:     [ 1, -1],   /* bottom right */
+    details:    [ 1,  1],   /* top right    */
+    menus:      [-1,  1],   /* top left     */
+    beverages:  [ 0,  1],   /* middle top   */
+    team:       [ 0,  0]    /* centre       */
+};
+
+/* Hover only counts as intent after this long, so sweeping the pointer down the
+   option list doesn't kick off a download for every filter at once. */
+const PREFETCH_DWELL_MS = 140;
+
 function imagesForFilter(manifest, filterId) {
     return manifest.images.filter(function (img) {
         return img.filters.indexOf(filterId) !== -1;
     });
 }
 
+function anchorForFilter(manifest, filterId) {
+    const filter = manifest.filters.find(function (f) { return f.id === filterId; });
+    if (filter && Array.isArray(filter.anchor) && filter.anchor.length === 2) {
+        return filter.anchor;
+    }
+    return DEFAULT_ANCHORS[filterId] || [0, 0];
+}
+
+/* Fisher-Yates, in place */
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+    }
+    return arr;
+}
+
+/* At most POOL_LIMIT images, dealt round-robin from the folders `entries`
+   spans. Round-robin rather than a flat random sample so every folder is
+   represented no matter how lopsided the folder sizes are — a flat sample of 60
+   from 187 would under-serve beverages (17 files) and could miss it outright.
+   Re-shuffled on every call, so each visit — and each return to the same filter
+   — draws a different set. */
+function samplePool(entries, limit) {
+    if (entries.length <= limit) return shuffle(entries.slice());
+
+    const byFolder = new Map();
+    entries.forEach(function (img) {
+        if (!byFolder.has(img.folder)) byFolder.set(img.folder, []);
+        byFolder.get(img.folder).push(img);
+    });
+
+    /* Shuffle within each folder, then shuffle the folder order too, so the
+       remainder (when the limit doesn't divide evenly) doesn't always land on
+       the same folders. */
+    const buckets = shuffle(Array.from(byFolder.values()).map(shuffle));
+
+    const out = [];
+    let depth = 0;
+    let took = true;
+    while (out.length < limit && took) {
+        took = false;
+        for (let b = 0; b < buckets.length && out.length < limit; b++) {
+            if (depth < buckets[b].length) {
+                out.push(buckets[b][depth]);
+                took = true;
+            }
+        }
+        depth++;
+    }
+    return shuffle(out);
+}
+
 /* Builds the collapse/expand Menu: collapsed it shows "Menu" (or
    "Menu — the Experience" once something is chosen); clicking expands the
    option list; choosing one fades the canvas, updates the label, and
    collapses. `onSelect` returns the GSAP timeline so we can lock out further
-   clicks until the fade finishes. */
-function buildMenu(manifest, onSelect) {
+   clicks until the fade finishes. `onHover` gets a head start on the images for
+   an option the pointer is resting on, so a switch has something to show. */
+function buildMenu(manifest, onSelect, onHover) {
     const menu = document.getElementById("canvas-menu");
     const toggle = document.getElementById("canvas-menu-toggle");
     const label = document.getElementById("canvas-menu-label");
@@ -92,6 +171,23 @@ function buildMenu(manifest, onSelect) {
     document.addEventListener("keydown", function (e) {
         if (e.key === "Escape" && open) setOpen(false);
     });
+
+    /* Dwell on an option (pointer or keyboard focus) and its images start
+       downloading, so by the time it's clicked the collect has less to wait on. */
+    if (typeof onHover === "function") {
+        let dwell = null;
+        buttons.forEach(function (btn) {
+            function arm() {
+                if (btn.dataset.filter === current) return;
+                clearTimeout(dwell);
+                dwell = setTimeout(function () { onHover(btn.dataset.filter); },
+                    PREFETCH_DWELL_MS);
+            }
+            btn.addEventListener("mouseenter", arm);
+            btn.addEventListener("focus", arm);
+            btn.addEventListener("mouseleave", function () { clearTimeout(dwell); });
+        });
+    }
 }
 
 async function boot() {
@@ -113,10 +209,11 @@ async function boot() {
     }
 
     /* The label stays "Menu" until a filter is chosen, so the opening view is
-       the whole library — every folder — not one filter's slice. */
+       the whole library — every folder — not one filter's slice. Capped and
+       re-drawn per visit, so the opening field is a different 60 every time. */
     const canvas = createInfiniteCanvas({
         container: container,
-        images: manifest.images
+        images: samplePool(manifest.images, POOL_LIMIT)
     });
 
     /* --- load complete (real, or backstopped if the pool stalls) --- */
@@ -139,9 +236,29 @@ async function boot() {
         return;
     }
 
-    buildMenu(manifest, function (filterId) {
-        return canvas.setFilter(imagesForFilter(manifest, filterId));
-    });
+    /* A filter's sample is drawn once and held until it's actually shown, so the
+       set warmed on hover is the same set the click reveals. Dropping it after
+       use means coming back to a filter later re-draws — every visit to "the
+       Team" is a different Team. */
+    const pending = new Map();
+    function poolFor(filterId) {
+        if (!pending.has(filterId)) {
+            pending.set(filterId, samplePool(imagesForFilter(manifest, filterId), POOL_LIMIT));
+        }
+        return pending.get(filterId);
+    }
+
+    buildMenu(
+        manifest,
+        function (filterId) {
+            const pool = poolFor(filterId);
+            pending.delete(filterId);
+            return canvas.setFilter(pool, anchorForFilter(manifest, filterId));
+        },
+        function (filterId) {
+            canvas.prefetch(poolFor(filterId));
+        }
+    );
 
     /* Loader handshake:
        here     --counter:load-progress--->  (available; main runs its own counter)

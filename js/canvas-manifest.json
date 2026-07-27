@@ -5,6 +5,10 @@
       "label": "the Experience",
       "folders": [
         "experience"
+      ],
+      "anchor": [
+        -1,
+        -1
       ]
     },
     {
@@ -12,6 +16,10 @@
       "label": "the Design",
       "folders": [
         "design"
+      ],
+      "anchor": [
+        1,
+        -1
       ]
     },
     {
@@ -19,6 +27,10 @@
       "label": "the Details",
       "folders": [
         "details"
+      ],
+      "anchor": [
+        1,
+        1
       ]
     },
     {
@@ -27,6 +39,10 @@
       "folders": [
         "experience",
         "details"
+      ],
+      "anchor": [
+        -1,
+        1
       ]
     },
     {
@@ -34,6 +50,10 @@
       "label": "the Beverages",
       "folders": [
         "beverages"
+      ],
+      "anchor": [
+        0,
+        1
       ]
     },
     {
@@ -41,6 +61,10 @@
       "label": "the Team",
       "folders": [
         "team"
+      ],
+      "anchor": [
+        0,
+        0
       ]
     }
   ],
