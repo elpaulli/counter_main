@@ -36,7 +36,13 @@
     font-display: swap;
 }
 
-
+@font-face {
+    font-family: "Humane";
+    src: url("../fonts/Humane-Black.ttf") format("truetype");
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
 
 @font-face {
     font-family: "Tiempos";
@@ -56,6 +62,9 @@
     --fg-70: rgba(33, 33, 33, 0.70);
     --fg-30: rgba(33, 33, 33, 0.30);
     --fg-20: rgba(33, 33, 33, 0.20);
+    --bg-70: rgba(248, 242, 230, 0.70);
+    --bg-90: rgba(248, 242, 230, 0.90);
+    --accentColor: #f4451e;
 }
 .dark_theme {
     --fg:    #f8f2e6;
@@ -277,21 +286,23 @@ body.is-immersive .definition-text {
     position: relative;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    /* Bar and panel are one column of the same width — they share an edge, so
+       they cannot be independently sized. */
+    align-items: stretch;
+    width: min(92vw, 430px);
     /* Only the control is interactive; the rest of the bar row stays clickable
        through to the canvas */
     pointer-events: auto;
 }
 
-/* The pill itself. Holds the toggle and the clear button as siblings, so the X
-   sits inside the border rather than floating off the end of it. */
+/* The bar. Square, not a pill — the panel stacks flush on top of it and a
+   radius at the join would leave a notch. */
 .canvas-menu-bar {
-    display: inline-flex;
+    position: relative;
+    display: flex;
     align-items: center;
-    min-width: 200px;
     background: var(--bg);
     border: 1px solid var(--fg-20);
-    border-radius: 999px;
     transition: border-color 0.3s ease, background-color var(--theme-fade);
 }
 
@@ -300,64 +311,178 @@ body.is-immersive .definition-text {
     border-color: var(--fg-70);
 }
 
-/* Transparent inside the pill — the wrapper draws the chrome now. */
+/* Label lives at the left end; the bar's own chrome is drawn by the wrapper. */
 .canvas-menu-toggle {
     flex: 1;
+    min-width: 0;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    padding: 11px 22px;
+    justify-content: flex-start;
+    text-align: left;
+    padding: 14px 16px;
     cursor: pointer;
     background: none;
     color: var(--fg);
     border: none;
-    border-radius: 999px;
     font-family: var(--font-display);
     font-size: 12px;
     letter-spacing: 1px;
     text-transform: uppercase;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     transition: color var(--theme-fade);
 }
 
-/* Options stack above the toggle and float, so opening never shifts the
-   toggle's position */
-.canvas-menu-options {
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-bottom: 10px;
-    display: flex;
+/* ---------- three bars ---------- */
+.canvas-menu-burger {
+    flex: none;
+    display: inline-flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 2px;
-    padding: 8px;
-    min-width: 200px;
-    background: var(--bg);
-    border: 1px solid var(--fg-20);
-    border-radius: 14px;
-    /* Collapsed: hidden and non-interactive until opened */
-    opacity: 0;
-    visibility: hidden;
-    transform: translateX(-50%) translateY(8px);
-    transition: opacity 0.3s ease, transform 0.3s ease,
-                visibility 0s linear 0.3s;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 46px;
+    align-self: stretch;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--fg);
+    transition: color var(--theme-fade);
 }
 
-.canvas-menu.is-open .canvas-menu-options {
-    opacity: 1;
+.canvas-menu-burger span {
+    display: block;
+    width: 17px;
+    height: 1.5px;
+    background: currentColor;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.25s ease;
+}
+.canvas-menu-burger span.middle_span {
+    height: 2px;
+}
+
+.canvas-menu.is-open .canvas-menu-burger span:nth-child(1) { transform: translateY(5.5px); }
+.canvas-menu.is-open .canvas-menu-burger span:nth-child(2) { opacity: 0; }
+.canvas-menu.is-open .canvas-menu-burger span:nth-child(3) { transform: translateY(-5.5px); }
+
+.canvas-menu-panel {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    display: grid;
+    grid-template-rows: 0fr;
+    background: var(--bg);
+    border: 1px solid var(--fg-20);
+    border-bottom: none;
+    visibility: hidden;
+    transition: grid-template-rows 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.3s ease,
+                visibility 0s linear 0.5s;
+}
+
+.canvas-menu.is-open .canvas-menu-panel {
+    grid-template-rows: 1fr;
+    border-color: var(--fg-70);
     visibility: visible;
-    transform: translateX(-50%) translateY(0);
-    transition: opacity 0.3s ease, transform 0.3s ease,
+    transition: grid-template-rows 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+                border-color 0.3s ease,
                 visibility 0s linear 0s;
 }
 
+/* min-height:0 is what lets the track actually collapse to nothing */
+.canvas-menu-panel-inner {
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* No padding — the rows run edge to edge so the panel reads as part of the bar */
+.canvas-menu-options {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 6px 0;
+}
+
+/* ---------- contact + social ---------- */
+.canvas-menu-foot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 14px 16px 15px;
+    /* the divider the foot sits under */
+    border-top: 1px solid var(--fg-20);
+}
+
+.canvas-menu-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.canvas-menu-meta {
+    font-family: var(--font-display);
+    font-size: 10px;
+    letter-spacing: 1px;
+    line-height: 1.5;
+    text-transform: uppercase;
+    color: var(--fg);
+    text-decoration: none;
+    opacity: 0.6;
+    transition: opacity 0.25s ease;
+}
+
+.canvas-menu-meta:hover,
+.canvas-menu-meta:focus-visible {
+    opacity: 1;
+}
+
+.canvas-menu-social {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: none;
+}
+
+.canvas-menu-social a {
+    display: inline-flex;
+    color: var(--fg);
+    opacity: 0.6;
+    transition: opacity 0.25s ease;
+}
+
+.canvas-menu-social a:hover,
+.canvas-menu-social a:focus-visible {
+    opacity: 1;
+}
+
+.canvas-menu-social svg {
+    display: block;
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Round cap on a zero-length path — the lens dot, without a second shape */
+.canvas-menu-social-dot {
+    stroke-width: 2.4;
+}
+
+/* Full-bleed rows, left-aligned to the label above them — a centred chip
+   floating in a 430px square panel reads as a leftover from the pill. */
 .canvas-menu-option {
     background: none;
     border: none;
     padding: 9px 16px;
-    border-radius: 8px;
     cursor: pointer;
     color: var(--fg);
     font-family: var(--font-display);
@@ -365,7 +490,7 @@ body.is-immersive .definition-text {
     letter-spacing: 1px;
     text-transform: uppercase;
     white-space: nowrap;
-    text-align: center;
+    text-align: left;
     opacity: 0.6;
     transition: opacity 0.25s ease, background-color 0.25s ease;
 }
@@ -404,7 +529,7 @@ body.is-immersive .definition-text {
 
 .canvas-menu.has-filter .canvas-menu-clear {
     width: 26px;
-    margin-right: 14px;
+    margin-right: 2px;
     opacity: 0.7;
     visibility: visible;
     transform: scale(1);
@@ -416,7 +541,7 @@ body.is-immersive .definition-text {
 /* The label keeps its own padding, so trim the gap the X would otherwise add
    between the two. */
 .canvas-menu.has-filter .canvas-menu-toggle {
-    padding-right: 8px;
+    padding-right: 6px;
 }
 
 .canvas-menu.has-filter .canvas-menu-clear:hover,
@@ -469,6 +594,7 @@ body.is-immersive .definition-text {
 /* The chrome is faded to nothing by GSAP; this stops the invisible layers from
    swallowing the click that closes the photo. */
 body.photo-focus .brand-mark,
+body.photo-focus .pillars-tab,
 body.photo-focus .site-grid,
 body.photo-focus .bottom-bar,
 body.photo-focus .filter-panels,
@@ -606,4 +732,555 @@ body.photo-focus .hero-definition-overlay {
 .grid-social, .grid-extra-link {
     font-size: inherit;
     font-weight: inherit;
+}
+
+/* ---------- CURSOR HINT ---------- */
+/* A badge that trails the cursor after the reveal: a "Drag" pill with an arrow
+   bubble on each of its four sides, which becomes "Scroll" with only the top
+   and bottom arrows left before the whole thing goes.
+   Positioned entirely by GSAP (x/y from the element's top-left, offset clear of
+   the pointer), so left and top stay at 0 and the transform does all the work. */
+.cursor-hint {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 300;
+    /* It teaches the canvas; it must never swallow a drag meant for it */
+    pointer-events: none;
+    display: grid;
+    grid-template-columns: auto auto auto;
+    grid-template-rows: auto auto auto;
+    align-items: center;
+    justify-items: center;
+    row-gap: 6px;
+    /* Column spacing lives on the side arrows' own margins, not here: the gap
+       would survive them collapsing and leave a hole where they used to be. */
+    column-gap: 0;
+    /* JS reveals this once it has placed the badge beside the cursor */
+    visibility: hidden;
+}
+
+.cursor-hint-up    { grid-area: 1 / 2; }
+.cursor-hint-left  { grid-area: 2 / 1; margin-right: 6px; }
+.cursor-hint-label { grid-area: 2 / 2; }
+.cursor-hint-right { grid-area: 2 / 3; margin-left: 6px; }
+.cursor-hint-down  { grid-area: 3 / 2; }
+
+.cursor-hint-label {
+    background: var(--fg);
+    color: var(--bg);
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    line-height: 1;
+    padding: 11px 18px;
+    border-radius: 999px;
+    white-space: nowrap;
+    /* The pill must not resize under the word swap, or the arrows centred on it
+       jump sideways mid-transition. "Scroll" is the wider word and measures
+       ~99px with this padding, so it sets the floor for both. */
+    min-width: 100px;
+    text-align: center;
+}
+
+.cursor-hint-arrow {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+     background: var(--fg);
+    color: var(--bg);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* The side pair collapse their width on the swap to "Scroll"; without this
+       their glyph would spill out of the shrinking circle. */
+    overflow: hidden;
+    flex: none;
+}
+
+/* One chevron rotated to face each way, rather than four separate glyphs */
+.cursor-hint-arrow svg {
+    display: block;
+    width: 13px;
+    height: 13px;
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.cursor-hint-left svg  { transform: rotate(180deg); }
+.cursor-hint-up svg    { transform: rotate(-90deg); }
+.cursor-hint-down svg  { transform: rotate(90deg); }
+
+/* Start invisible so nothing shows for the frame before GSAP takes over */
+.cursor-hint-label,
+.cursor-hint-arrow {
+    opacity: 0;
+}
+
+/* ---------- PARTNERS PANEL ---------- */
+/* Sits where the definition line is (JS pins `top` to that element's box) and
+   is centred with auto margins rather than a transform — GSAP animates y on the
+   way in, and a CSS transform is what it would overwrite. */
+.partners-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: min(78vw, 720px);
+    z-index: 128;
+    text-align: center;
+    color: var(--fg);
+    /* GSAP owns these via autoAlpha from here on */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Only interactive while open, so the closed panel can't eat clicks meant for
+   the canvas underneath it. */
+.partners-panel.is-open {
+    pointer-events: auto;
+}
+
+.partners-close {
+    display: block;
+    margin: 0 auto 14px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 24px;
+    line-height: 1;
+    transition: transform 0.3s ease, color var(--theme-fade);
+}
+
+.partners-close:hover,
+.partners-close:focus-visible {
+    transform: rotate(45deg);
+}
+
+.partners-title {
+    font-family: var(--font-display);
+    font-size: clamp(12px, 1.1vw, 15px);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: normal;
+    margin: 0 0 30px;
+}
+
+.partners-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(14px, 3vw, 46px);
+    align-items: center;
+}
+
+.partners-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.75;
+    transition: opacity 0.3s ease;
+}
+
+.partners-item:hover,
+.partners-item:focus-visible {
+    opacity: 1;
+}
+
+/* The three logos are different formats and proportions; contain them in a
+   shared box so the row reads as one line rather than three sizes. */
+.partners-item img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 74px;
+    object-fit: contain;
+}
+
+/* The canvas is dimmed to almost nothing behind the panel — take it out of the
+   click path too, so a click meant to dismiss the panel isn't also read as a
+   drag or a photo selection. */
+body.partners-open .infinite-canvas {
+    pointer-events: none;
+}
+
+/* ============================================
+   LEGAL — TERMS OF USE / PRIVACY POLICY
+   ============================================
+   Modelled on the Codrops "responsive and SEO-friendly WebGL text" layout: a
+   centred column, a small label over an enormous condensed heading, oversized
+   body copy, and a mask reveal as each block enters the viewport. The type is
+   real DOM text throughout — the whole point of that piece is that the
+   spectacle never costs you the readable, selectable, indexable content.
+
+   Scrolling happens only inside .legal-scroll. Palette is the site's own
+   (--bg / --fg); Humane is scoped to this section and used nowhere else. */
+
+.legal_scroll_wrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    background: var(--bg-90);
+    /* GSAP owns these from here (autoAlpha) */
+    opacity: 0;
+    visibility: hidden;
+    /* The wrapper itself never scrolls — the inner column does */
+    overflow: hidden;
+}
+
+.legal-scroll {
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Reaching either end must not start scrolling the page behind it */
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.legal-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.legal-doc {
+    width: min(92vw, 1180px);
+    margin: 0 auto;
+    padding: 14vh 0 22vh;
+    color: var(--fg);
+    font-family: "Humane", var(--font-display), sans-serif;
+    font-weight: 900;
+    text-align: center;
+    /* Scroll velocity drives this — see the JS. At rest it is 0. */
+    transform: skewY(var(--legal-skew, 0deg));
+}
+
+/* ---------- masthead ---------- */
+.legal-head {
+    margin-bottom: 12vh;
+}
+
+.legal-eyebrow {
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: clamp(11px, 1vw, 14px);
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    margin: 0 0 clamp(10px, 1.6vh, 22px);
+    opacity: 0.6;
+}
+
+.legal-title {
+    font-size: clamp(64px, 15.5vw, 280px);
+    line-height: 0.78;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+/* ---------- body ---------- */
+.legal-h {
+    font-size: clamp(30px, 5.4vw, 96px);
+    line-height: 0.9;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+    margin: clamp(48px, 9vh, 140px) 0 clamp(14px, 2vh, 30px);
+}
+
+.legal-p,
+.legal-list {
+    font-size: clamp(14px, 2.3vw, 20px);
+    line-height: 1.28;
+    font-family: var(--font-sans);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.legal-p {
+    margin-top: 0;
+    margin-bottom: clamp(14px, 2vh, 28px);
+}
+
+.legal-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 0;
+    margin-bottom: clamp(14px, 2vh, 28px);
+}
+
+.legal-list li {
+    margin-bottom: 0.7em;
+}
+
+.legal-list em,
+.legal-p em {
+    font-style: normal;
+    opacity: 0.55;
+}
+
+.legal-emphasis {
+    color: var(--accentColor);
+}
+
+.legal-outro {
+    font-size: clamp(56px, 13vw, 240px);
+    line-height: 0.8;
+    text-transform: uppercase;
+    margin: clamp(80px, 16vh, 260px) 0 0;
+}
+
+/* ---------- mask reveal ----------
+   Each block is clipped away at its own baseline and lifted into place as it
+   enters the view — the DOM equivalent of the tutorial's vertex/fragment
+   reveal, where the text appears to rise out of nothing.
+
+   The clip lives on an inner span, and the class that releases it is set on the
+   *parent* block. That split is deliberate: the observer watching for entry has
+   to measure an element the clip hasn't already reduced to zero area, or the
+   hidden state defeats the very thing meant to undo it. */
+.legal-reveal {
+    display: block;
+    clip-path: inset(0 -0.15em 105% -0.15em);
+    transform: translateY(0.42em);
+    opacity: 0;
+    will-change: clip-path, transform;
+}
+
+.legal-in > .legal-reveal {
+    clip-path: inset(0 -0.15em -0.35em -0.15em);
+    transform: translateY(0);
+    opacity: 1;
+    transition:
+        clip-path 1.15s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 1.15s cubic-bezier(0.16, 1, 0.3, 1),
+        opacity 0.5s ease;
+}
+
+/* The masthead's two lines arrive as a pair rather than together */
+.legal-title.legal-in > .legal-reveal {
+    transition-delay: 0.14s;
+}
+
+/* ---------- scroll-velocity chromatic shift ----------
+   Stands in for the tutorial's post-processing RGB split: two offset copies of
+   the display type, pushed apart by how fast you are scrolling and gone the
+   moment you stop. Kept off the paragraphs — a text-shadow on that much heavy
+   type at that size is the one thing here that would cost frames. */
+.legal-title,
+.legal-h,
+.legal-outro {
+    text-shadow:
+        calc(var(--legal-shift, 0px) * -1) 0 0 rgba(244, 69, 30, 0.55),
+        var(--legal-shift, 0px) 0 0 rgba(30, 160, 244, 0.45);
+}
+
+/* ---------- close ---------- */
+.legal-close {
+    position: fixed;
+    top: clamp(18px, 3vh, 40px);
+    right: clamp(18px, 3vw, 46px);
+    z-index: 2;
+    padding: 0;
+    width: 44px;
+    height: 44px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 30px;
+    line-height: 1;
+    transition: transform 0.3s ease, color var(--theme-fade);
+}
+
+.legal-close:hover,
+.legal-close:focus-visible {
+    transform: rotate(45deg);
+}
+
+/* While a document is open the canvas is dimmed and must not take clicks */
+body.legal-open .infinite-canvas {
+    pointer-events: none;
+}
+
+/* ---------- LEGAL CURSOR ----------
+   Every pixel of the panel dismisses it, so the pointer says so: an X in a
+   circle, hotspot dead centre.
+
+   Spelled out twice because a cursor image is a data URI and a data URI cannot
+   read --fg — the stroke has to be baked in, so light and dark each need their
+   own copy. The trailing `pointer` is the fallback if the image is refused. */
+body.legal-open .legal_scroll_wrapper,
+body.legal-open .legal_scroll_wrapper * {
+    cursor:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Ccircle cx='18' cy='18' r='12.6' fill='none' stroke='%23212121' stroke-width='1.5'/%3E%3Cpath d='M13.9 13.9 22.1 22.1M22.1 13.9 13.9 22.1' fill='none' stroke='%23212121' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") 18 18,
+        pointer;
+}
+
+body.dark_theme.legal-open .legal_scroll_wrapper,
+body.dark_theme.legal-open .legal_scroll_wrapper * {
+    cursor:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36'%3E%3Ccircle cx='18' cy='18' r='12.6' fill='none' stroke='%23f8f2e6' stroke-width='1.5'/%3E%3Cpath d='M13.9 13.9 22.1 22.1M22.1 13.9 13.9 22.1' fill='none' stroke='%23f8f2e6' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") 18 18,
+        pointer;
+}
+
+/* ---------- COUNTER PILLARS ---------- */
+/* Pinned to the middle of the right edge. Because the tab is anchored to that
+   edge and the icon is the last thing in it, the icon's distance from the right
+   of the viewport is fixed — so as the label opens, the box grows leftward and
+   the icon cannot move.
+
+   The label opens on max-width rather than a grid fr track. An fr resolves
+   against free space, and in a shrink-to-fit box the intermediate values are
+   not monotonic: the element overshoots its final width partway through and
+   corrects, which is what made the icon jump left and snap back. A max-width
+   interpolates straight from 0 to its cap and the width only ever grows. */
+.pillars-tab {
+    position: fixed;
+    top: 50%;
+    right: var(--grid-pad);;
+    transform: translateY(-50%);
+    z-index: 129;
+    display: flex;
+    align-items: stretch;
+    padding: 0;
+    background: var(--bg);
+    border: 1px solid var(--fg-20);
+    border-radius: 2em;
+    cursor: pointer;
+    color: var(--fg);
+    opacity: 0;
+    transition: border-color 0.3s ease, background-color var(--theme-fade);
+}
+
+.pillars-tab:hover,
+.pillars-tab:focus-visible,
+.pillars-tab.is-open {
+    border-color: var(--fg-70);
+}
+
+/* Right-aligned inside its own clipped box, so the words sit against the icon
+   and stay there: the box opens out from under them rather than carrying them
+   along. The text is uncovered in place, which is what lets a plain fade read
+   as the label arriving instead of sliding in. */
+.pillars-tab-label {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    /* Closing: the words go first, then the box follows them shut. */
+    transition: max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.08s,
+                opacity 0.2s ease;
+}
+
+.pillars-tab:hover .pillars-tab-label,
+.pillars-tab:focus-visible .pillars-tab-label,
+.pillars-tab.is-open .pillars-tab-label {
+    /* Comfortably past the real label width — it caps the box, it doesn't set
+       it, so the only cost of slack here is that the motion finishes early. */
+    max-width: 200px;
+    opacity: 1;
+    /* Opening: the box leads, the words fade in behind it. */
+    transition: max-width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.3s ease 0.14s;
+}
+
+/* The padding rides on the inner span: on the collapsed box padding would
+   survive the clip as a visible stub. */
+.pillars-tab-label > span {
+    display: block;
+    padding-left: 18px;
+    padding-right: 4px;
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.pillars-tab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* flex:none — the icon is the fixed point the whole thing opens away from */
+    flex: none;
+    width: 42px;
+    height: 42px;
+}
+
+.pillars-tab-icon svg {
+    display: block;
+    width: 19px;
+    height: 19px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+}
+
+/* Round cap on a zero-length path — the tittle, without a second shape */
+.pillars-tab-dot {
+    stroke-width: 2.4;
+}
+
+/* ---------- the three columns ---------- */
+.pillars-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 127;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6vw;
+    /* GSAP owns these via autoAlpha */
+    opacity: 0;
+    visibility: hidden;
+    /* The layer stays click-through so a click anywhere dismisses; only the
+       copy opts back in, so it can still be selected. */
+    pointer-events: none;
+}
+
+.pillars-panel.is-open .pillars-grid {
+    pointer-events: auto;
+}
+
+.pillars-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(22px, 4.5vw, 76px);
+    width: min(92vw, 1060px);
+    color: var(--fg);
+}
+
+.pillar-name {
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: clamp(12px, 1.1vw, 16px);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 0 0 clamp(12px, 1.6vw, 20px);
+}
+
+.pillar-text {
+    font-size: clamp(12px, 0.95vw, 15px);
+    line-height: 1.75;
+    letter-spacing: 0.03em;
+    margin: 0;
+    opacity: 0.72;
+}
+
+/* Dimmed to almost nothing behind the columns, and out of the click path so a
+   dismissing click isn't also read as a drag or a photo selection. */
+body.pillars-open .infinite-canvas {
+    pointer-events: none;
 }

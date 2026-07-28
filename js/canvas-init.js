@@ -163,6 +163,7 @@ function buildMenu(manifest, handlers) {
     const label = document.getElementById("canvas-menu-label");
     const optionsWrap = document.getElementById("canvas-menu-options");
     const clearBtn = document.getElementById("canvas-menu-clear");
+    const burger = document.getElementById("canvas-menu-burger");
     if (!menu || !toggle || !label || !optionsWrap) return;
 
     const buttons = manifest.filters.map(function (filter) {
@@ -183,7 +184,13 @@ function buildMenu(manifest, handlers) {
     function setOpen(next) {
         open = next;
         menu.classList.toggle("is-open", open);
+        /* Two controls open the same panel — the label and the three bars — so
+           both have to report the same state. */
         toggle.setAttribute("aria-expanded", String(open));
+        if (burger) {
+            burger.setAttribute("aria-expanded", String(open));
+            burger.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+        }
     }
 
     /* Label, pressed states and the X's presence all follow from one place, so
@@ -215,6 +222,14 @@ function buildMenu(manifest, handlers) {
         if (busy) return;
         setOpen(!open);
     });
+
+    if (burger) {
+        burger.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (busy) return;
+            setOpen(!open);
+        });
+    }
 
     optionsWrap.addEventListener("click", function (e) {
         const btn = e.target.closest(".canvas-menu-option");
