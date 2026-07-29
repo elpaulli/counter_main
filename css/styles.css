@@ -1132,17 +1132,6 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
         pointer;
 }
 
-/* ---------- COUNTER PILLARS ---------- */
-/* Pinned to the middle of the right edge. Because the tab is anchored to that
-   edge and the icon is the last thing in it, the icon's distance from the right
-   of the viewport is fixed — so as the label opens, the box grows leftward and
-   the icon cannot move.
-
-   The label opens on max-width rather than a grid fr track. An fr resolves
-   against free space, and in a shrink-to-fit box the intermediate values are
-   not monotonic: the element overshoots its final width partway through and
-   corrects, which is what made the icon jump left and snap back. A max-width
-   interpolates straight from 0 to its cap and the width only ever grows. */
 .pillars-tab {
     position: fixed;
     top: 50%;
@@ -1167,10 +1156,7 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
     border-color: var(--fg-70);
 }
 
-/* Right-aligned inside its own clipped box, so the words sit against the icon
-   and stay there: the box opens out from under them rather than carrying them
-   along. The text is uncovered in place, which is what lets a plain fade read
-   as the label arriving instead of sliding in. */
+
 .pillars-tab-label {
     display: flex;
     align-items: center;
@@ -1178,7 +1164,6 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
     max-width: 0;
     overflow: hidden;
     opacity: 0;
-    /* Closing: the words go first, then the box follows them shut. */
     transition: max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.08s,
                 opacity 0.2s ease;
 }
@@ -1186,17 +1171,12 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 .pillars-tab:hover .pillars-tab-label,
 .pillars-tab:focus-visible .pillars-tab-label,
 .pillars-tab.is-open .pillars-tab-label {
-    /* Comfortably past the real label width — it caps the box, it doesn't set
-       it, so the only cost of slack here is that the motion finishes early. */
     max-width: 200px;
     opacity: 1;
-    /* Opening: the box leads, the words fade in behind it. */
     transition: max-width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
                 opacity 0.3s ease 0.14s;
 }
 
-/* The padding rides on the inner span: on the collapsed box padding would
-   survive the clip as a visible stub. */
 .pillars-tab-label > span {
     display: block;
     padding-left: 18px;
@@ -1212,7 +1192,6 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    /* flex:none — the icon is the fixed point the whole thing opens away from */
     flex: none;
     width: 42px;
     height: 42px;
@@ -1228,12 +1207,11 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
     stroke-linecap: round;
 }
 
-/* Round cap on a zero-length path — the tittle, without a second shape */
 .pillars-tab-dot {
     stroke-width: 2.4;
 }
 
-/* ---------- the three columns ---------- */
+
 .pillars-panel {
     position: fixed;
     inset: 0;
@@ -1242,11 +1220,8 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
     align-items: center;
     justify-content: center;
     padding: 0 6vw;
-    /* GSAP owns these via autoAlpha */
     opacity: 0;
     visibility: hidden;
-    /* The layer stays click-through so a click anywhere dismisses; only the
-       copy opts back in, so it can still be selected. */
     pointer-events: none;
 }
 
@@ -1279,8 +1254,7 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
     opacity: 0.72;
 }
 
-/* Dimmed to almost nothing behind the columns, and out of the click path so a
-   dismissing click isn't also read as a drag or a photo selection. */
+
 body.pillars-open .infinite-canvas {
     pointer-events: none;
 }
