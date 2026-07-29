@@ -13,6 +13,10 @@
     <meta property="og:description" content="Counter- is an intimate, full sensory dining experience located in Charlotte, NC, featuring themed, rotating tasting menus created by Executive Chef and Founder Sam Hart, a 2023 James Beard Awards Finalist for Best Chef: Southeast.">
     <meta name="description" content="counter- is a story-driven dining experience in Charlotte, NC focused on producing the highest level personal memory for guests.">
     <link rel="stylesheet" href="css/styles.css">
+    <!-- Every media query lives here, and it must come after styles.css so it
+         wins on equal specificity. It was never linked, so none of the
+         responsive rules in this project had been taking effect. -->
+    <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body>
 
@@ -110,13 +114,15 @@
     </div>
 
     <div class="site-grid" id="site-grid">
+        <div class="site-grid-bg top-gradient"></div>
+        <div class="site-grid-bg bottom-gradient"></div>
          <div class="site-grid-cell site-grid-top-center ">
              <a href="https://www.exploretock.com/counterclt" target="_blank" rel="noopener noreferrer" class="grid-cta doner-font-add-space ">RESERVATIONS</a>
             <span class="grid-cta-sep">|</span>
             <a href="https://www.toasttab.com/counter-clt-llc-2001-w-morehead-st/giftcards" target="_blank" rel="noopener noreferrer" class="grid-cta doner-font-add-space ">GIFT CARD</a>
         </div>
         <div class="site-grid-cell site-grid-top-right ">
-            <a href="mailto:reservations@counterclt.com" class="grid-address doner-font-add-space ">reservations@counterclt.com</a>
+            <a href="mailto:reservations@counterclt.com" class=" hide_on_mobile grid-address doner-font-add-space ">reservations@counterclt.com</a>
             <a href="tel:+19802922090" class="grid-phone doner-font-add-space ">1 (980) 292-2090</a>
         </div>
 
@@ -149,7 +155,8 @@
                     <!-- Toggles the partners panel rather than navigating, so no
                          target/rel here — those would open a blank tab. -->
                     <a href="#" class="grid-social partners-display-link" id="partners-display-link"
-                       role="button" aria-expanded="false" aria-controls="partners-panel">Partners</a>
+                       data-partners-toggle role="button" aria-expanded="false"
+                       aria-controls="partners-panel">Partners</a>
                 </div>
                 <button class="grid-expand-toggle" id="grid-expand-toggle" aria-label="More links" aria-expanded="false">+</button>
             </div>
@@ -271,11 +278,18 @@
                 <path d="M12 11.1v5.2"></path>
                 <path class="pillars-tab-dot" d="M12 7.9h.01"></path>
             </svg>
+            
         </span>
     </button>
 
     <div class="pillars-panel" id="pillars-panel" aria-hidden="true">
-        <div class="pillars-grid">
+        <div class="pillars-inner">
+            <!-- Mobile close. It lives inside the revealed panel rather than
+                 beside it, so it travels with the copy instead of staying
+                 pinned wherever the tab happened to be. -->
+            <button class="pillars-close" id="pillars-close" type="button"
+                    aria-label="Close counter pillars">+</button>
+            <div class="pillars-grid">
             <article class="pillar">
                 <h2 class="pillar-name">Counter-Balance</h2>
                 <p class="pillar-text">Designed to showcase the produce and proteins from the land around us, rather than perpetuate the unstable alternative.</p>
@@ -288,6 +302,20 @@
                 <h2 class="pillar-name">Counter-Culture</h2>
                 <p class="pillar-text">Opposed to the norms of the restaurant industry, promoting diversity and unveiling narratives that have been hidden.</p>
             </article>
+        
+            <article class="pillar">
+                <h2 class="pillar-name">Michael Myers</h2>
+                <p class="pillar-text">Executive Beverage Director</p>
+            </article>
+            <article class="pillar">
+                <h2 class="pillar-name">SAM HART</h2>
+                <p class="pillar-text">Executive Chef</p>
+            </article>
+            <article class="pillar">
+                <h2 class="pillar-name">Faith Morley</h2>
+                <p class="pillar-text">Executive Pastry Chef</p>
+            </article>
+            </div>
         </div>
     </div>
 
@@ -318,6 +346,97 @@
             <p class="filter-panel-body">Certain seasonal themes may not be suitable for children under the age of 18, so please be sure to contact us in advance at <a href="mailto:reservations@counterclt.com">reservations@counterclt.com</a>.</p>
         </article>
 
+        <article class="filter-panel" data-filter="season-pass">
+            <div class="filter-panel-corner filter-panel-corner-tl">
+                <h2 class="filter-panel-title">Season Pass</h2>
+                <p class="filter-panel-body filter-panel-alert">Sorry! The 2025 season passes are sold out.</p>
+                <p class="filter-panel-body">In the meantime, <a href="https://www.exploretock.com/counterclt" target="_blank" rel="noopener noreferrer">make a reservation</a>!</p>
+            </div>
+            <div class="filter-panel-corner filter-panel-corner-br">
+                <h3 class="filter-panel-subtitle">2026 Season Passes go on sale Sept 9, 2025 at 10:30 EST.</h3>
+                <p class="filter-panel-body">Get first priority reservations, lowered rates, sneak peeks into future menus, and the best seats in the house.</p>
+                <p class="filter-panel-body">Restrictions: If you do not use it, you will lose it! Pass holders may transfer their menu ticket redemption to another person. You can purchase more tickets at the time of your booking.</p>
+                <p class="filter-panel-body">Beverage pairings, enhancements, and other add-ons can still be processed the night of the reservation.</p>
+                <p class="filter-panel-body">Gratuity is included in the ticket price.</p>
+            </div>
+        </article>
+
+        <article class="filter-panel" data-filter="private-events">
+            <div class="filter-panel-corner filter-panel-corner-tl">
+                <h2 class="filter-panel-title">Private Events</h2>
+                <p class="filter-panel-body">Interested in Holding your next event with us?</p>
+                <p class="filter-panel-body"><a href="mailto:reservations@counterclt.com">Send us a message</a></p>
+            </div>
+        </article>
+
+        <!-- Questions are tabs down the left with the answer beside them: only
+             one answer is on screen at a time, which is what buys it a readable
+             size in the short band above the strip. -->
+        <article class="filter-panel filter-panel-wide" data-filter="faq">
+            <h2 class="filter-panel-title">Your Questions, Answered</h2>
+            <div class="filter-panel-tabs">
+                <div class="filter-panel-tablist" role="tablist" aria-label="Frequently asked questions">
+                    <button class="filter-panel-tab" type="button" role="tab"
+                            id="faq-tab-1" aria-controls="faq-panel-1"
+                            aria-selected="true">Do you have parking?</button>
+                    <button class="filter-panel-tab" type="button" role="tab"
+                            id="faq-tab-2" aria-controls="faq-panel-2"
+                            aria-selected="false">Do you accommodate allergies?</button>
+                    <button class="filter-panel-tab" type="button" role="tab"
+                            id="faq-tab-3" aria-controls="faq-panel-3"
+                            aria-selected="false">Why is your max reservation size four?</button>
+                    <button class="filter-panel-tab" type="button" role="tab"
+                            id="faq-tab-4" aria-controls="faq-panel-4"
+                            aria-selected="false">When should we arrive for our reservation?</button>
+                    <button class="filter-panel-tab" type="button" role="tab"
+                            id="faq-tab-5" aria-controls="faq-panel-5"
+                            aria-selected="false">How long is the average dining experience?</button>
+                    <button class="filter-panel-tab" type="button" role="tab"
+                            id="faq-tab-6" aria-controls="faq-panel-6"
+                            aria-selected="false">Do you have Beverage Pairings?</button>
+                </div>
+                <div class="filter-panel-tabpanels">
+                    <div class="filter-panel-tabpanel is-active" role="tabpanel"
+                         id="faq-panel-1" aria-labelledby="faq-tab-1">
+                        <p class="filter-panel-body">Yes we do! We have a large lot infront and behind the restaurant to park. We do highly recommend booking a rideshare if you plan on drinking.</p>
+                    </div>
+                    <div class="filter-panel-tabpanel" role="tabpanel"
+                         id="faq-panel-2" aria-labelledby="faq-tab-2">
+                        <p class="filter-panel-body">All dietary restrictions and allergies can be accommodated with proper notice. We can guarantee all dietary restrictions with at least 48 hour notice.</p>
+                    </div>
+                    <div class="filter-panel-tabpanel" role="tabpanel"
+                         id="faq-panel-3" aria-labelledby="faq-tab-3">
+                        <p class="filter-panel-body">We have a small and intimate dining room. With being along the counter- it is difficult to communicate with a fifth or sixth diner without impacting the experience of the other diners. We do have a Sommelier’s Table that can accommodate larger parties.</p>
+                    </div>
+                    <div class="filter-panel-tabpanel" role="tabpanel"
+                         id="faq-panel-4" aria-labelledby="faq-tab-4">
+                        <p class="filter-panel-body">We open the doors 10 minutes before service time. We start service promptly at the scheduled time.</p>
+                    </div>
+                    <div class="filter-panel-tabpanel" role="tabpanel"
+                         id="faq-panel-5" aria-labelledby="faq-tab-5">
+                        <p class="filter-panel-body">2.5-3 hours is the average dining experience at Counter-.</p>
+                    </div>
+                    <div class="filter-panel-tabpanel" role="tabpanel"
+                         id="faq-panel-6" aria-labelledby="faq-tab-6">
+                        <p class="filter-panel-body">Most certainly! Our beverage program is highly respected and awarded for both Wine and Spirit Free Pairings. WE have multiple selections for every menu that you can book for with the initial reservation or in person during the experience.</p>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- The Menus runs its strip through the middle of the frame, so its copy
+             splits into a band above and a band below rather than sitting to one
+             side. JS stamps data-side="split" — the bands come from that. -->
+        <article class="filter-panel" data-filter="menus">
+            <div class="filter-panel-band">
+                <h2 class="filter-panel-title">The Menus</h2>
+                <p class="filter-panel-body">At counter- we approach our menus as a crime-writer might approach a plot or the way a composer might approach the second movement.</p>
+            </div>
+            <div class="filter-panel-band">
+                <p class="filter-panel-body">Because of the creative energy that goes into every tasting menu at counter-, we like to call them “themes.” Our themes change every season, and we hold specialty menus sporadically throughout the year! No two themes are the same, and courses are never repeated after the end of the three-month period, ensuring a novel experience with each visit.</p>
+            </div>
+        </article>
+
         <article class="filter-panel" data-filter="beverages">
             <h2 class="filter-panel-title">The Beverages</h2>
             <p class="filter-panel-body">We don’t call ourselves match-makers, but we do have the perfect pairing for every course.</p>
@@ -337,6 +456,35 @@
             <div class="canvas-menu-panel">
                 <div class="canvas-menu-panel-inner">
                     <div class="canvas-menu-options" id="canvas-menu-options"></div>
+
+                    <!-- Arrangements of the images already on screen, not
+                         filters over folders. Built from manifest.views. -->
+                    <div class="canvas-menu-views" id="canvas-menu-views"></div>
+
+                    <!-- Mobile only. The footer's links are hidden at this
+                         width, so they live here instead, behind one more tap.
+                         The legal ones carry the same class and data-legal the
+                         footer's do, so main.js wires them without knowing
+                         they exist; Partners opts in by attribute. -->
+                    <div class="canvas-menu-more" id="canvas-menu-more">
+                        <button class="canvas-menu-more-toggle" id="canvas-menu-more-toggle"
+                                type="button" aria-expanded="false" aria-controls="canvas-menu-more-list">
+                            <span>More</span>
+                            <span class="canvas-menu-more-plus" aria-hidden="true">+</span>
+                        </button>
+                        <div class="canvas-menu-more-list" id="canvas-menu-more-list">
+                            <div class="canvas-menu-more-inner">
+                                <a class="canvas-menu-more-link" href="https://www.instagram.com/counterclt/" target="_blank" rel="noopener noreferrer">Instagram</a>
+                                <a class="canvas-menu-more-link" href="https://www.facebook.com/profile.php?id=100063610899519" target="_blank" rel="noopener noreferrer">Facebook</a>
+                                <a class="canvas-menu-more-link" href="#" data-partners-toggle role="button" aria-expanded="false" aria-controls="partners-panel">Partners</a>
+                                <a class="canvas-menu-more-link grid-extra-link" href="#" data-legal="terms">Legal</a>
+                                <a class="canvas-menu-more-link" href="#">Careers</a>
+                                <a class="canvas-menu-more-link" href="mailto:counter@sprouthouseagency.com">Press</a>
+                                <a class="canvas-menu-more-link grid-extra-link" href="#" data-legal="privacy">Privacy</a>
+                                <a class="canvas-menu-more-link grid-extra-link" href="#" data-legal="terms">Terms of Use</a>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="canvas-menu-foot">
                         <div class="canvas-menu-contact">
@@ -361,6 +509,16 @@
                                     <path d="M8.4 11.6h5.6"></path>
                                 </svg>
                             </a>
+                            <!-- Toggles the same partners panel as the footer
+                                 link; main.js treats both as one control. -->
+                            <button class="canvas-menu-partners" id="canvas-menu-partners" type="button"
+                                    data-partners-toggle aria-expanded="false" aria-controls="partners-panel"
+                                    aria-label="Our 501(c)(3) partners">
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <circle cx="8.6" cy="12" r="4.6"></circle>
+                                    <circle cx="15.4" cy="12" r="4.6"></circle>
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -398,7 +556,10 @@
             </a>
             <a class="partners-item" href="https://www.thebulbgallery.org/"
                target="_blank" rel="noopener noreferrer">
-                <img src="images/The+Bulb+Solo+Logo.webp" alt="The Bulb">
+                <!-- %2B, not "+": a literal plus in a path is decoded as a space
+                     by a lot of hosts and CDNs, which 404s in production while
+                     working fine locally. Same reason the manifest is encoded. -->
+                <img src="images/The%2BBulb%2BSolo%2BLogo.webp" alt="The Bulb">
             </a>
             <a class="partners-item" href="https://therelatives.org/donate/"
                target="_blank" rel="noopener noreferrer">

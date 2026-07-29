@@ -239,7 +239,35 @@ body.is-immersive .definition-text {
     justify-content: center;
     gap: .5em;
 }
-
+.site-grid-bg {
+    position: absolute;
+    
+    left: 0;
+    width: 100%;
+    height: 50px;
+    
+    z-index: 0;
+}
+.top-gradient {
+    top: 0;
+    background: linear-gradient(
+        to bottom,
+        rgb(from var(--bg) r g b / 0.7) 0%,
+        rgb(from var(--bg) r g b / 0) 100%
+    );
+}
+.bottom-gradient {
+    bottom: 0;
+     background: linear-gradient(
+     to top,
+    rgb(from var(--bg) r g b / 0.7) 0%,
+    rgb(from var(--bg) r g b / 0) 100%
+    );
+}
+.site-grid-cell {
+    position: relative;
+    z-index: 1;
+}
 /* ---------- INFINITE CANVAS ---------- */
 .infinite-canvas {
     position: absolute;
@@ -645,9 +673,44 @@ body.photo-focus .hero-definition-overlay {
     margin: 0 auto;
 }
 
-.filter-panel[data-side="top"]    { top: 9vh; }
+.filter-panel[data-side="top"]    { top: 6vh; }
 /* Sits above the menu pill rather than behind it */
 .filter-panel[data-side="bottom"] { bottom: 16vh; }
+
+/* Split: the strip runs through the middle, so the copy takes the bands left
+   above and below it. space-between pins one band to each end, which keeps them
+   clear of the images without either needing to know how tall the strip is. */
+.filter-panel[data-side="split"] {
+    inset: 0;
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    /* bottom clears the menu bar; top clears the site-grid chrome */
+    padding: 6vh 6vw 10vh;
+    text-align: center;
+}
+
+/* Wide, because the vertical budget is what's tight: a wider measure is fewer
+   lines, and fewer lines is what keeps the band clear of the images. */
+.filter-panel[data-side="split"] .filter-panel-band {
+    width: min(66vw, 900px);
+    margin: 0 auto;
+}
+
+/* Nothing but the first band carries a title, so the gap belongs to the title
+   rather than to every band. */
+.filter-panel[data-side="split"] .filter-panel-title {
+    margin-bottom: 12px;
+}
+
+/* Set tighter than the side panels. Those have a full half-frame of height to
+   spend; these two have only the bands left over above and below the strip, and
+   every extra line of copy is a line that pushes into the images. */
+.filter-panel[data-side="split"] .filter-panel-body {
+    font-size: clamp(12px, 0.95vw, 15px);
+    line-height: 1.62;
+}
 
 .filter-panel-title {
     font-family: var(--font-display);
@@ -1133,10 +1196,15 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 }
 
 .pillars-tab {
+    /* Desktop: pinned to the left edge, vertically centred on the page. Mobile
+       moves it under the definition line instead — see the media query, which
+       also reorders the icon/label so the reveal still opens away from the
+       pinned edge. */
     position: fixed;
     top: 50%;
-    right: var(--grid-pad);;
+    left: var(--grid-pad);
     transform: translateY(-50%);
+    --pillars-icon: 42px;
     z-index: 129;
     display: flex;
     align-items: stretch;
@@ -1160,7 +1228,9 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 .pillars-tab-label {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    /* Text hugs the icon (now the leading element, see .pillars-tab-icon's
+       order) and reveals outward to the right as the label opens. */
+    justify-content: flex-start;
     max-width: 0;
     overflow: hidden;
     opacity: 0;
@@ -1179,8 +1249,8 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 
 .pillars-tab-label > span {
     display: block;
-    padding-left: 18px;
-    padding-right: 4px;
+    padding-left: 4px;
+    padding-right: 18px;
     font-family: var(--font-display);
     font-size: 11px;
     letter-spacing: 1px;
@@ -1189,12 +1259,15 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 }
 
 .pillars-tab-icon {
+    /* Leads the label in visual order (it's last in the DOM) so it sits at
+       the pinned left edge and stays put while the label opens beside it. */
+    order: -1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex: none;
-    width: 42px;
-    height: 42px;
+    width: var(--pillars-icon);
+    height: var(--pillars-icon);
 }
 
 .pillars-tab-icon svg {
@@ -1212,6 +1285,23 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 }
 
 
+/* Mobile only — see the media query. Hidden here so it never shows on desktop,
+   where the tab itself is the close. */
+.pillars-close {
+    display: none;
+    margin: 0 auto 20px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 26px;
+    line-height: 1;
+    /* A plus turned 45 degrees, matching the close on the other panels. */
+    transform: rotate(45deg);
+}
+
 .pillars-panel {
     position: fixed;
     inset: 0;
@@ -1225,7 +1315,7 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
     pointer-events: none;
 }
 
-.pillars-panel.is-open .pillars-grid {
+.pillars-panel.is-open .pillars-inner {
     pointer-events: auto;
 }
 
@@ -1235,6 +1325,7 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
     gap: clamp(22px, 4.5vw, 76px);
     width: min(92vw, 1060px);
     color: var(--fg);
+    text-align: center;
 }
 
 .pillar-name {
@@ -1243,7 +1334,6 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
     font-size: clamp(12px, 1.1vw, 16px);
     letter-spacing: 2px;
     text-transform: uppercase;
-    margin: 0 0 clamp(12px, 1.6vw, 20px);
 }
 
 .pillar-text {
@@ -1257,4 +1347,302 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 
 body.pillars-open .infinite-canvas {
     pointer-events: none;
+}
+
+/* ---------- MENU: ARRANGEMENTS ---------- */
+/* Second group in the panel, under the filters. One rule separates them: these
+   re-lay the images already on screen rather than changing which images those
+   are, and the line is the only thing saying so. */
+.canvas-menu-views {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 6px 0;
+    border-top: 1px solid var(--fg-20);
+}
+
+/* Same control as a filter row — they behave identically once clicked. */
+.canvas-menu-views .canvas-menu-option {
+    text-align: left;
+}
+
+/* ---------- MENU: PARTNERS ICON ---------- */
+.canvas-menu-partners {
+    display: inline-flex;
+    align-items: center;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--fg);
+    opacity: 0.6;
+    transition: opacity 0.25s ease;
+}
+
+.canvas-menu-partners:hover,
+.canvas-menu-partners:focus-visible,
+.canvas-menu-partners[aria-expanded="true"] {
+    opacity: 1;
+}
+
+.canvas-menu-partners svg {
+    display: block;
+    width: 22px;
+    height: 22px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+}
+
+/* ---------- PANEL: DIAGONAL'S CORNER ---------- */
+/* A rising strip leaves the top-left and bottom-right triangles clear. The copy
+   takes the top-left one, and stays narrow: the further it reaches toward the
+   middle the closer it gets to the strip's own band. */
+/* A rising strip leaves two clear triangles, not one — top-left and
+   bottom-right. So the panel itself spans the frame and its blocks take a
+   corner each; a filter with only one block just uses the top-left. */
+.filter-panel[data-side="corner"] {
+    inset: 0;
+    width: auto;
+}
+
+.filter-panel-corner {
+    position: absolute;
+    /* Narrow on purpose. The clear region is a triangle, so a rectangle in it
+       trades width for height at 45 degrees — every pixel wider is a pixel the
+       block has to lose off its far end before its corner meets the strip. */
+    width: min(22vw, 300px);
+}
+
+.filter-panel-corner-tl {
+    top: 8vh;
+    left: 5vw;
+}
+
+/* Ranged off the opposite corner, and right-aligned into it, so the block reads
+   as belonging to that end of the diagonal rather than drifting in the middle. */
+.filter-panel-corner-br {
+    bottom: 11vh;
+    right: 5vw;
+    text-align: right;
+}
+
+.filter-panel-subtitle {
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: clamp(11px, 0.95vw, 14px);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    line-height: 1.35;
+    margin: 0 0 12px;
+}
+
+.filter-panel-alert {
+    color: var(--accentColor);
+}
+
+/* Set smaller than a side panel's: these blocks have a fraction of the height. */
+.filter-panel[data-side="corner"] .filter-panel-body {
+    font-size: clamp(10px, 0.78vw, 12px);
+    line-height: 1.55;
+}
+
+.filter-panel[data-side="corner"] .filter-panel-body + .filter-panel-body {
+    margin-top: 0.75em;
+}
+
+.filter-panel[data-side="corner"] .filter-panel-title {
+    margin-bottom: 12px;
+}
+
+/* ---------- PANEL: WIDE + COLUMNS ---------- */
+/* For a band that has to hold more than a paragraph. The width override is on
+   the panel rather than the placement, because it is the content asking for it,
+   not the side it sits on. */
+.filter-panel-wide[data-side="top"],
+.filter-panel-wide[data-side="bottom"] {
+    width: min(88vw, 1240px);
+}
+
+/* ---------- PANEL: TABBED COPY ---------- */
+/* Questions down the left, the chosen answer beside them. Showing one answer at
+   a time is what makes the type readable: six at once had to shrink to fit the
+   band, and this band is short because the strip owns the rest of the frame. */
+.filter-panel-tabs {
+    display: grid;
+    grid-template-columns: minmax(0, 0.4fr) minmax(0, 0.6fr);
+    gap: clamp(20px, 3vw, 56px);
+    align-items: start;
+    text-align: left;
+}
+
+.filter-panel-tablist {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+/* The dropdown is the narrow-screen face of the same control — hidden here,
+   swapped in for the tab column by the media query. */
+.filter-panel-tabselect {
+    display: none;
+    pointer-events: auto;
+    width: 100%;
+    padding: 10px 34px 10px 14px;
+    background-color: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--fg-20);
+    border-radius: 0;
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    /* Drop the platform chrome so it matches the rest of the site, then draw
+       the chevron back in — without it the control loses its only affordance. */
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23212121' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 13px center;
+}
+
+/* Same reason the legal cursor is written twice: the chevron is a data URI and
+   cannot read --fg, so the dark theme needs its own copy. */
+.dark_theme .filter-panel-tabselect {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23f8f2e6' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.filter-panel-tab {
+    /* The panel layer is click-through so the canvas stays draggable; controls
+       inside it have to opt back in, same as the links do. */
+    pointer-events: auto;
+    padding: 6px 0;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: clamp(10px, 0.82vw, 12px);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    line-height: 1.35;
+    opacity: 0.42;
+    transition: opacity 0.25s ease;
+}
+
+.filter-panel-tab:hover,
+.filter-panel-tab:focus-visible {
+    opacity: 0.75;
+}
+
+.filter-panel-tab[aria-selected="true"] {
+    opacity: 1;
+}
+
+.filter-panel-tabpanel {
+    display: none;
+}
+
+.filter-panel-tabpanel.is-active {
+    display: block;
+}
+
+/* The point of the tabs: one answer, at a size worth reading. */
+.filter-panel-tabpanel .filter-panel-body {
+    font-size: clamp(13px, 1.05vw, 17px);
+    line-height: 1.7;
+}
+
+.filter-panel-columns {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: clamp(14px, 2vw, 30px) clamp(18px, 2.6vw, 42px);
+    text-align: left;
+}
+
+.filter-panel-q {
+    font-family: var(--font-display);
+    font-weight: normal;
+    font-size: clamp(10px, 0.82vw, 12px);
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    margin: 0 0 5px;
+}
+
+/* Tighter than a normal panel body: six answers have to share the band left
+   above the strip, and that band is not tall. */
+.filter-panel-columns .filter-panel-body {
+    font-size: clamp(10px, 0.7vw, 11px);
+    line-height: 1.42;
+}
+
+/* ---------- MENU: MORE (mobile only) ---------- */
+/* Hidden on desktop, where these links live in the footer grid. */
+.canvas-menu-more {
+    display: none;
+    border-top: 1px solid var(--fg-20);
+}
+
+.canvas-menu-more-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 11px 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--fg);
+    font-family: var(--font-display);
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.canvas-menu-more-plus {
+    font-size: 15px;
+    line-height: 1;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-menu-more.is-open .canvas-menu-more-plus {
+    transform: rotate(45deg);
+}
+
+/* Same 0fr -> 1fr track as the menu panel itself: it opens to the real height
+   of the list rather than to a guess. */
+.canvas-menu-more-list {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-menu-more.is-open .canvas-menu-more-list {
+    grid-template-rows: 1fr;
+}
+
+.canvas-menu-more-inner {
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.canvas-menu-more-link {
+    padding: 8px 16px 8px 26px;
+    color: var(--fg);
+    text-decoration: none;
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    opacity: 0.6;
+    transition: opacity 0.25s ease;
+}
+
+.canvas-menu-more-link:hover,
+.canvas-menu-more-link:focus-visible {
+    opacity: 1;
 }

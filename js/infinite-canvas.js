@@ -137,6 +137,23 @@ const CHURN_TUMBLE = 0.55;
    is what reads as mixing rather than spinning. */
 const CHURN_CORE = 1.35;
 
+/* An arrangement change — a "view" — re-lays the images already in play rather
+   than swapping the pool. Nothing is being concealed, so it skips the gather,
+   the pile and the mix entirely: the field dissolves, the new alignment forms
+   in its place, and the strip glides the last of the way in along its own axis
+   so it reads as aligning rather than simply appearing. */
+const ARRANGE_OUT = 0.42;
+const ARRANGE_IN = 0.95;
+/* How far along its own axis the strip slides in, in world units. */
+const ARRANGE_SLIDE = 90;
+
+/* Ambient drift for a view's strip, in world units per second — roughly one
+   image every six seconds. Applied on top of whatever the viewer is doing, so
+   scrolling still works and the strip resumes drifting when they stop rather
+   than coasting to a halt. Filters do not get it: their reels are something you
+   look through, this is something you watch. */
+const REEL_AUTO_RATE = 9;
+
 /* Peak blur on the canvas, in CSS pixels. Individual tiles are only ~20-30px
    across when gathered, so this is well past the point where they stop being
    legible as separate images — which is the point. */
@@ -218,6 +235,50 @@ const REEL_BOX_VERTICAL = {
 const REEL_BOX_HORIZONTAL = {
     along: 0.30, cross: 0.46, inset: 0.38, gap: 0.06, snug: true
 };
+/* side:"center" — horizontal, but running through the middle of the frame
+   rather than along an edge. Nothing shares that half, so the images take
+   noticeably more of it; the copy panel splits above and below instead of
+   sitting opposite. inset MUST stay 0, or it stops being the centre. */
+/* The extra size goes into `along`, not `cross`. Height is the scarce axis
+   here: the copy takes a band above and a band below, and past about cross 0.50
+   the strip eats the bottom band on a 700px-tall screen. Widening instead buys
+   the same "bigger" without touching that budget. */
+const REEL_BOX_CENTER = {
+    along: 0.44, cross: 0.46, inset: 0, gap: 0.06, snug: true
+};
+
+/* A diagonal strip. Its images stay upright — only the line they travel is
+   turned — so this box is read against the frame's own width and height rather
+   than against the diagonal's longer reach. */
+const REEL_BOX_DIAGONAL = {
+    along: 0.30, cross: 0.30, inset: 0, gap: 0.06, snug: true
+};
+
+/* Which box a strip uses. Keyed off the side rather than just the axis, since
+   "center" is horizontal but sized quite differently from an edge strip. */
+function reelBoxFor(side) {
+    if (side === "center") return REEL_BOX_CENTER;
+    if (side === "diagonal") return REEL_BOX_DIAGONAL;
+    if (side === "left" || side === "right") return REEL_BOX_VERTICAL;
+    return REEL_BOX_HORIZONTAL;
+}
+
+/* The strip's own frame: `a` is the direction it travels, `c` the direction it
+   is offset in. Written out per side rather than derived by rotating `a`,
+   because the vertical and horizontal conventions disagree about which way
+   perpendicular points and both predate the diagonal. Keeping them literal is
+   what lets a third axis be added without disturbing either. */
+const SQ = Math.SQRT1_2;
+function reelAxes(side) {
+    if (side === "left" || side === "right") {
+        return { ax: 0, ay: 1, cx: 1, cy: 0 };
+    }
+    if (side === "diagonal") {
+        /* Rising left-to-right, with the offset perpendicular to it. */
+        return { ax: SQ, ay: SQ, cx: -SQ, cy: SQ };
+    }
+    return { ax: 1, ay: 0, cx: 0, cy: 1 };
+}
 
 /* Depth the strip sits at. Inside the solid band (NEAR_FADE_FULL ..
    DEPTH_FADE_START) so the depth fade leaves it alone. */
@@ -276,6 +337,11 @@ const DRIFT_AMOUNT = 9;
 const DRIFT_LERP = 0.06;
 
 const MAX_CONCURRENT_LOADS = 6;
+
+/* Images pulled per idle batch by the background warmer. Small on purpose: each
+   batch only starts once the pipe is empty, so this is the most that can ever be
+   queued ahead of something the viewer suddenly needs. */
+const WARM_BATCH = 4;
 
 /* A plane only queues its (full-res) texture once it's this visible, not the
    instant it crosses INVIS_THRESHOLD. Raising the bar keeps the initial load to
@@ -457,7 +523,26 @@ export function createInfiniteCanvas(options) {
     const textureCache = new Map();
     const loadQueue = [];
     const prefetched = new Set();
+    /* Sources that have failed once. Never requested again, and never handed to
+       a plane as a replacement. */
+    const badSources = new Set();
     let activeLoads = 0;
+
+    /* Give a plane whose image 404'd a different one from the pool, so a missing
+       file degrades into a repeat rather than a gap. Bounded tries — if the pool
+       is mostly dead there is nothing useful to swap to and the plane is left
+       alone rather than thrashing the loader. */
+    function reassignBadPlane(mesh) {
+        if (!activePool.length || badSources.size >= activePool.length) return;
+        for (let i = 0; i < 10; i++) {
+            const alt = activePool[(Math.random() * activePool.length) | 0].src;
+            if (badSources.has(alt) || alt === mesh.userData.src) continue;
+            mesh.userData.src = alt;
+            mesh.userData.requested = false;
+            mesh.userData.hasTexture = false;
+            return;
+        }
+    }
 
     function pumpQueue() {
         while (activeLoads < MAX_CONCURRENT_LOADS && loadQueue.length) {
@@ -508,13 +593,22 @@ export function createInfiniteCanvas(options) {
                     if (job.mesh) applyTexture(job.mesh, job.src, texture);
                     reportProgress();
                     pumpQueue();
+                    pumpWarm();
                 },
                 undefined,
                 function () {
                     activeLoads--;
                     textureCache.set(job.src, null);
+                    /* A file that isn't there must not cost us a plane. Without
+                       this the plane holds a src that will never resolve, stays
+                       at opacity 0 forever, and reads as a hole in the field —
+                       which is exactly what a mis-encoded filename looks like in
+                       production while working locally. */
+                    badSources.add(job.src);
+                    if (job.mesh) reassignBadPlane(job.mesh);
                     reportProgress();
                     pumpQueue();
+                    pumpWarm();
                 }
             );
         }
@@ -533,11 +627,26 @@ export function createInfiniteCanvas(options) {
 
     function requestTexture(mesh, src) {
         if (mesh.userData.requested) return;
-        mesh.userData.requested = true;
+
         if (textureCache.has(src)) {
-            applyTexture(mesh, src, textureCache.get(src));
+            const cached = textureCache.get(src);
+            if (cached) {
+                mesh.userData.requested = true;
+                applyTexture(mesh, src, cached);
+            } else {
+                /* Already known to be missing. This is the common path for a
+                   404, not the per-plane one: most fetches are background
+                   warming jobs that carry no mesh, so by the time a plane asks
+                   for the file the failure is only a null in the cache. Marking
+                   it requested here — as this used to — is what turned one bad
+                   file into a permanent hole. Leave it unrequested so the frame
+                   loop picks up the replacement on the next tick. */
+                reassignBadPlane(mesh);
+            }
             return;
         }
+
+        mesh.userData.requested = true;
         loadQueue.push({ mesh: mesh, src: src });
         pumpQueue();
     }
@@ -677,8 +786,13 @@ export function createInfiniteCanvas(options) {
     }
 
     let reelActive = false;
+    /* `wanted` is the side the manifest asked for; `reelSide` is the one the
+       viewport can actually take — see applyReelSide. */
+    let reelSideWanted = "right";
     let reelSide = "right";
     const reelItems = [];
+    /* Non-zero only while a view's strip is up — see REEL_AUTO_RATE. */
+    let reelAutoRate = 0;
     let reelStart = null;
     let reelSlot = null;
     let reelSize = null;
@@ -730,6 +844,17 @@ export function createInfiniteCanvas(options) {
     function clearReel() {
         for (let i = 0; i < reelItems.length; i++) releaseMesh(reelItems[i]);
         reelItems.length = 0;
+    }
+
+    /* On a phone every strip runs along the bottom, whatever it was told. A
+       vertical strip in a portrait frame has barely more room to travel than a
+       horizontal one and leaves nothing either side for the copy; a diagonal has
+       less of both. The copy is pinned to the top of the frame at that width, so
+       the images take the bottom. */
+    function applyReelSide() {
+        reelSide = window.matchMedia("(max-width: 900px)").matches
+            ? "bottom"
+            : reelSideWanted;
     }
 
     function reelIsVertical() {
@@ -854,17 +979,27 @@ export function createInfiniteCanvas(options) {
         const n = reelItems.length;
         if (!n) return;
 
+        /* "center" is horizontal like top/bottom; only its inset differs. */
         const vertical = reelSide === "left" || reelSide === "right";
+        const diagonal = reelSide === "diagonal";
+        /* Which way along the cross axis the strip is pushed. Moot for "center"
+           and "diagonal", whose inset is 0 — the sign multiplies out. */
         const crossSign = (reelSide === "right" || reelSide === "top") ? 1 : -1;
 
-        const halfAlong = vertical ? halfH : halfW;
-        const halfCross = vertical ? halfW : halfH;
-        const box = vertical ? REEL_BOX_VERTICAL : REEL_BOX_HORIZONTAL;
+        const ax = reelAxes(reelSide);
+        /* How far the frame reaches in each of the strip's directions — the
+           rectangle's support function, which reduces to halfW/halfH on the two
+           square-on axes and correctly gives a diagonal its longer run. */
+        const halfAlong = halfW * Math.abs(ax.ax) + halfH * Math.abs(ax.ay);
+        const halfCross = halfW * Math.abs(ax.cx) + halfH * Math.abs(ax.cy);
+        const box = reelBoxFor(reelSide);
 
         const boxAlong = halfAlong * 2 * box.along;
         const boxCross = halfCross * 2 * box.cross;
-        const boxH = vertical ? boxAlong : boxCross;
-        const boxW = vertical ? boxCross : boxAlong;
+        /* An image is always upright, so its height and width are capped by the
+           frame's own axes once the strip is off them. */
+        const boxH = diagonal ? halfH * 2 * box.cross : (vertical ? boxAlong : boxCross);
+        const boxW = diagonal ? halfW * 2 * box.along : (vertical ? boxCross : boxAlong);
         const gapPx = boxAlong * box.gap;
         const spanFull = halfAlong * 2 * REEL_SPAN;
         const crossBase = crossSign * box.inset * halfCross;
@@ -875,7 +1010,12 @@ export function createInfiniteCanvas(options) {
             const size = Math.min(boxH, boxW / aspect);
             reelSize[i] = size;
             reelStart[i] = loop;
-            const along = box.snug ? (vertical ? size : size * aspect) : boxAlong;
+            /* How much of the strip an upright image occupies: its own support
+               function along the travel direction, which is just the height on
+               a vertical strip and the width on a horizontal one. */
+            const along = box.snug
+                ? Math.abs(size * aspect * ax.ax) + Math.abs(size * ax.ay)
+                : boxAlong;
             reelSlot[i] = along + gapPx;
             loop += reelSlot[i];
         }
@@ -896,8 +1036,8 @@ export function createInfiniteCanvas(options) {
             const cross = crossBase + dev;
 
             const home = mesh.userData.home;
-            home.x = camera.position.x + (vertical ? cross : d);
-            home.y = camera.position.y + (vertical ? d : cross);
+            home.x = camera.position.x + d * ax.ax + cross * ax.cx;
+            home.y = camera.position.y + d * ax.ay + cross * ax.cy;
             home.z = camera.position.z - REEL_DEPTH;
 
             mesh.userData.size = reelSize[i];
@@ -953,13 +1093,66 @@ export function createInfiniteCanvas(options) {
         pumpQueue();
     }
 
+    /* ---------- background warming ----------
+       The opening view is capped so the first paint is cheap, but that cap must
+       not decide what the site can ever show: switching filters pulls images
+       that were never part of it, and on a cold connection those arrive late
+       enough to read as gaps. So once the intro is over, the rest of the library
+       is fetched in the background.
+
+       Strictly while the pipe is idle, a few at a time. The load queue is shared
+       with everything the viewer is actually waiting on and MAX_CONCURRENT_LOADS
+       is small, so dumping two hundred jobs into it would put the next visible
+       plane behind the entire library. Idle-gating means warming can only ever
+       use slack, never take a slot from something on screen. */
+    let warmList = null;
+    let warmIndex = 0;
+
+    function warmAll(list) {
+        warmList = list.slice();
+        warmIndex = 0;
+        pumpWarm();
+    }
+
+    function pumpWarm() {
+        if (!warmList) return;
+        /* Anything in flight or already queued outranks warming, no exceptions. */
+        if (activeLoads > 0 || loadQueue.length) return;
+
+        let added = 0;
+        while (warmIndex < warmList.length && added < WARM_BATCH) {
+            const src = warmList[warmIndex++];
+            if (textureCache.has(src) || prefetched.has(src)) continue;
+            prefetched.add(src);
+            loadQueue.push({ mesh: null, src: src });
+            added++;
+        }
+
+        if (added) {
+            pumpQueue();
+        } else if (warmIndex >= warmList.length) {
+            warmList = null;
+            if (typeof options.onWarmComplete === "function") {
+                options.onWarmComplete(textureCache.size, badSources.size);
+            }
+        }
+    }
+
     function poolReady(list) {
         if (!list.length) return true;
-        let n = 0;
+        let decoded = 0;
+        let settled = 0;
         for (let i = 0; i < list.length; i++) {
-            if (textureCache.has(list[i].src)) n++;
+            if (!textureCache.has(list[i].src)) continue;
+            settled++;
+            /* has() is true for failures too — the cache stores null for them.
+               Only a real texture counts toward "ready", or a pool of 404s would
+               satisfy the gate instantly and the spread would carry nothing. */
+            if (textureCache.get(list[i].src)) decoded++;
         }
-        return n / list.length >= SWAP_READY_FRACTION;
+        /* ...but if everything has settled, waiting longer achieves nothing. */
+        if (settled === list.length) return true;
+        return decoded / list.length >= SWAP_READY_FRACTION;
     }
 
     function whenPoolReady(list, cb) {
@@ -1059,9 +1252,14 @@ export function createInfiniteCanvas(options) {
     function onPointerMove(e) {
         if (!dragging) return;
         if (reelActive) {
-            reelScroll.targetVel += reelIsVertical()
-                ? (e.clientY - lastPointer.y) * DRAG_SPEED
-                : -(e.clientX - lastPointer.x) * DRAG_SPEED;
+            /* Pointer travel projected onto the strip's own direction, so a
+               diagonal drags along its diagonal. The two square-on cases come
+               out exactly as the hand-written signs did: screen y runs opposite
+               world y, screen x runs with it. */
+            const dragAxes = reelAxes(reelSide);
+            reelScroll.targetVel -=
+                ((e.clientX - lastPointer.x) * dragAxes.ax +
+                 (lastPointer.y - e.clientY) * dragAxes.ay) * DRAG_SPEED;
         } else {
             targetVel.x -= (e.clientX - lastPointer.x) * DRAG_SPEED;
             targetVel.y += (e.clientY - lastPointer.y) * DRAG_SPEED;
@@ -1109,6 +1307,8 @@ export function createInfiniteCanvas(options) {
     el.addEventListener("wheel", onWheel, { passive: false });
 
     function onResize() {
+        /* Crossing the breakpoint can change which way a live strip runs. */
+        applyReelSide();
         const w = container.clientWidth;
         const h = container.clientHeight;
         camera.aspect = w / h;
@@ -1124,9 +1324,18 @@ export function createInfiniteCanvas(options) {
     let framePileScale = 0;
     let frameCollecting = false;
 
+    let lastFrameAt = 0;
+
     function frame() {
         if (!running) return;
         requestAnimationFrame(frame);
+
+        /* Seconds since the last frame, capped so a backgrounded tab or a long
+           stall doesn't resume by leaping. Only the ambient drift uses it — the
+           rest of the motion is per-frame by design. */
+        const nowMs = performance.now();
+        const dt = lastFrameAt ? Math.min((nowMs - lastFrameAt) / 1000, 0.05) : 0;
+        lastFrameAt = nowMs;
 
         targetVel.z += scrollAccum;
         scrollAccum *= SCROLL_DECAY;
@@ -1157,7 +1366,10 @@ export function createInfiniteCanvas(options) {
         reelScroll.accum *= SCROLL_DECAY;
         reelScroll.targetVel = clamp(reelScroll.targetVel, -MAX_VELOCITY, MAX_VELOCITY);
         reelScroll.vel += (reelScroll.targetVel - reelScroll.vel) * VELOCITY_LERP;
-        reelScroll.pos += reelScroll.vel;
+        /* Drift is added to the position, not to the velocity: pushed through
+           the velocity it would decay away like a flick, and the strip would
+           coast to a stop instead of carrying on. */
+        reelScroll.pos += reelScroll.vel + (reelActive ? reelAutoRate * dt : 0);
         reelScroll.targetVel *= VELOCITY_DECAY;
 
         const ccx = Math.round(basePos.x / CHUNK_SIZE);
@@ -1334,6 +1546,8 @@ export function createInfiniteCanvas(options) {
                switched to gets it back. */
             cancelFocus();
             selectEnabled = Boolean(o.selectable);
+            /* A filter's reel is static until you move it. */
+            reelAutoRate = 0;
 
             const tl = window.gsap.timeline();
             let swapped = false;
@@ -1388,7 +1602,8 @@ export function createInfiniteCanvas(options) {
                 clearReel();
                 reelActive = wantsReel;
                 if (wantsReel) {
-                    reelSide = o.side || "right";
+                    reelSideWanted = o.side || "right";
+                    applyReelSide();
                     buildReel();
                     /* Nothing left to fly through, and a leftover fling would
                        drag the strip's frame with it. */
@@ -1398,13 +1613,6 @@ export function createInfiniteCanvas(options) {
                 } else {
                     updateChunks();
                 }
-
-                /* The new layout exists as of here, so anything outside the
-                   canvas that belongs to it — the filter's copy panel — can
-                   start arriving. Fired ahead of the readiness wait below on
-                   purpose: that gives the copy the rest of the mix and the whole
-                   spread to fade up, instead of landing after the images have. */
-                if (typeof o.onSwap === "function") o.onSwap();
 
                 /* Hold in the mix until enough of the new pool has decoded, so
                    the cluster resolves carrying images rather than empty
@@ -1425,15 +1633,91 @@ export function createInfiniteCanvas(options) {
             }, "mix+=" + CHURN_IN);
 
             /* 5. Spread back out, after a gap that lets the new cluster register
-                  as itself before it flies apart. */
+                  as itself before it flies apart. The filter's copy is cued from
+                  here rather than from the swap: the swap happens inside the
+                  pinch, roughly a second before anything visibly moves, so a
+                  panel keyed to it arrived and then sat waiting for the images.
+                  Cued here it fades up while they are being placed. */
+            const spreadAt = "mix+=" + (CHURN_IN + CHURN_OUT + PILE_HOLD_OUT);
+
+            tl.call(function () {
+                if (typeof o.onSpread === "function") o.onSpread();
+            }, null, spreadAt);
+
             tl.to(collect, { p: 0, duration: COLLECT_OUT, ease: "power2.inOut" },
-                "mix+=" + (CHURN_IN + CHURN_OUT + PILE_HOLD_OUT));
+                spreadAt);
+            return tl;
+        },
+
+        /* Re-lay the images already on the canvas into a different arrangement.
+           `side` is a reel side, or null to go back to the scattered field.
+
+           Deliberately not setFilter: the pool does not change, so there is
+           nothing for a gather-and-mix to hide, and collapsing a field into a
+           corner only to send the same photographs back out reads as ceremony
+           for its own sake. This dissolves and re-forms in place. */
+        setArrangement: function (side, onForm) {
+            const g = window.gsap;
+            const tl = g.timeline();
+            const toReel = Boolean(side);
+
+            cancelFocus();
+            /* Off while a strip is up, back on when this returns to the field.
+               Clearing a view is the only way back to the scattered canvas that
+               doesn't go through setFilter, so leaving this false — as it was —
+               is what silently killed click-to-open after a view. */
+            selectEnabled = !toReel;
+
+            /* p stays at 0 throughout — nothing gathers. */
+            tl.set(collect, { p: 0, swirl: 0, blur: 0 });
+            tl.to(collect, { pinch: 0, duration: ARRANGE_OUT, ease: "power2.in" });
+
+            tl.call(function () {
+                clearChunks();
+                clearReel();
+                layoutSalt = (layoutSalt + 1) >>> 0;
+                reelActive = toReel;
+
+                if (toReel) {
+                    reelSideWanted = side;
+                    applyReelSide();
+                    buildReel();
+                    targetVel.x = targetVel.y = targetVel.z = 0;
+                    velocity.x = velocity.y = velocity.z = 0;
+                    scrollAccum = 0;
+                    /* buildReel zeroes this, so the offset has to come after. */
+                    reelScroll.pos = ARRANGE_SLIDE;
+                } else {
+                    updateChunks();
+                }
+            });
+
+            tl.addLabel("form");
+            /* Same cue as a filter's spread: the copy arrives as the images are
+               being placed, not before them. */
+            tl.call(function () {
+                if (typeof onForm === "function") onForm();
+            }, null, "form");
+            tl.to(collect, { pinch: 1, duration: ARRANGE_IN, ease: "power2.out" }, "form");
+            if (toReel) {
+                tl.to(reelScroll, { pos: 0, duration: ARRANGE_IN, ease: "power3.out" }, "form");
+            }
+            /* Started only once the slide has landed: that tween writes pos
+               absolutely every tick, so a drift running under it would be
+               overwritten frame by frame and never show. */
+            tl.call(function () { reelAutoRate = toReel ? REEL_AUTO_RATE : 0; });
             return tl;
         },
 
         /* Warm the cache for a pool that hasn't been chosen yet (menu hover). */
         prefetch: function (list) {
             prefetchSources(list);
+        },
+
+        /* Pull the whole library in the background, once the intro is done.
+           `list` is an array of src strings. Idle-gated — see pumpWarm. */
+        warmAll: function (list) {
+            warmAll(list);
         },
 
         /* Kick off the background preload behind the black loading screen.

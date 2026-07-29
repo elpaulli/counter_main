@@ -135,7 +135,65 @@
         }
     });
 
-    document.addEventListener("counter:filter-swap", function (e) {
+    /* Tab groups inside a copy panel. Generic — any panel can use one by
+       adding .filter-panel-tabs with .filter-panel-tab buttons and matching
+       .filter-panel-tabpanel blocks. */
+    document.querySelectorAll(".filter-panel-tabs").forEach(function (group) {
+        var tabs = Array.prototype.slice.call(group.querySelectorAll(".filter-panel-tab"));
+        var panes = Array.prototype.slice.call(group.querySelectorAll(".filter-panel-tabpanel"));
+        if (!tabs.length) return;
+
+        /* Narrow screens get a dropdown instead of a column of tabs. It is
+           built from the tabs rather than authored alongside them, so the two
+           can never drift apart — and a real <select> means the platform's own
+           picker on a phone, which no styled div gets close to. */
+        var picker = document.createElement("select");
+        picker.className = "filter-panel-tabselect";
+        picker.setAttribute("aria-label", group.querySelector(".filter-panel-tablist")
+            ? group.querySelector(".filter-panel-tablist").getAttribute("aria-label") || "Choose a question"
+            : "Choose a question");
+        tabs.forEach(function (tab, i) {
+            var opt = document.createElement("option");
+            opt.value = String(i);
+            opt.textContent = tab.textContent.trim();
+            picker.appendChild(opt);
+        });
+        group.insertBefore(picker, group.firstChild);
+
+        function select(index) {
+            tabs.forEach(function (tab, i) {
+                var on = i === index;
+                tab.setAttribute("aria-selected", String(on));
+                /* One stop in the tab order for the whole group; the arrows move
+                   between them from there. */
+                tab.tabIndex = on ? 0 : -1;
+            });
+            panes.forEach(function (pane, i) {
+                pane.classList.toggle("is-active", i === index);
+            });
+            if (picker.selectedIndex !== index) picker.selectedIndex = index;
+        }
+
+        picker.addEventListener("change", function () {
+            select(picker.selectedIndex);
+        });
+
+        tabs.forEach(function (tab, i) {
+            tab.addEventListener("click", function () { select(i); });
+            tab.addEventListener("keydown", function (e) {
+                var step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0;
+                if (!step) return;
+                e.preventDefault();
+                var next = (i + step + tabs.length) % tabs.length;
+                select(next);
+                tabs[next].focus();
+            });
+        });
+
+        select(0);
+    });
+
+    document.addEventListener("counter:filter-spread", function (e) {
         var panel = panelFor(e.detail && e.detail.filterId);
         if (!panel) return;
 
@@ -146,7 +204,9 @@
         if (side === "left") from.x = -22;
         else if (side === "right") from.x = 22;
         else if (side === "top") from.y = -22;
-        else from.y = 22;
+        else if (side === "bottom") from.y = 22;
+        /* "split" has a band at each end of the frame — a single direction
+           would carry one of them the wrong way, so it just fades. */
 
         gsap.fromTo(panel, from,
             { autoAlpha: 1, x: 0, y: 0, duration: 1.0, ease: "power3.out" });
@@ -177,6 +237,19 @@
     var infiniteCanvas = document.getElementById("infinite-canvas");
     var partnersOpen = false;
 
+    /* Both the footer link and the icon in the canvas menu drive the same
+       panel, so they are handled as one control throughout — including the
+       outside-click test, which must not treat either as "outside". */
+    /* Anything carrying data-partners-toggle drives the panel — the footer
+       link, the icon in the menu, and the entry in the mobile More list. Opting
+       in by attribute means a new one needs no change here. */
+    var partnersToggles = Array.prototype.slice.call(
+        document.querySelectorAll("[data-partners-toggle]"));
+
+    function isPartnersToggle(node) {
+        return partnersToggles.some(function (el) { return el.contains(node); });
+    }
+
     function setPartners(open) {
         if (!partnersPanel || open === partnersOpen) return;
         partnersOpen = open;
@@ -184,7 +257,9 @@
         partnersPanel.classList.toggle("is-open", open);
         partnersPanel.setAttribute("aria-hidden", String(!open));
         document.body.classList.toggle("partners-open", open);
-        if (partnersLink) partnersLink.setAttribute("aria-expanded", String(open));
+        partnersToggles.forEach(function (el) {
+            el.setAttribute("aria-expanded", String(open));
+        });
 
         /* Pin to wherever the definition line currently sits — it moves with
            the logo's height, so this can't be a fixed number. */
@@ -217,6 +292,16 @@
         }
     }
 
+    partnersToggles.forEach(function (el) {
+        /* partnersLink has its own handler further down. */
+        if (el === partnersLink) return;
+        el.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            setPartners(!partnersOpen);
+        });
+    });
+
     if (partnersLink && partnersPanel) {
         partnersLink.addEventListener("click", function (e) {
             e.preventDefault();
@@ -241,7 +326,7 @@
            that handler immediately reopen it. */
         document.addEventListener("click", function (e) {
             if (!partnersOpen) return;
-            if (partnersPanel.contains(e.target) || partnersLink.contains(e.target)) return;
+            if (partnersPanel.contains(e.target) || isPartnersToggle(e.target)) return;
             setPartners(false);
         }, true);
 
@@ -311,7 +396,36 @@
         }
     }
 
+    /* Mobile only: the tab sits under the definition line, which moves with
+       the logo's height — so its position is measured rather than guessed,
+       the same way the partners panel finds that line. On desktop the tab is
+       pinned to the left edge by CSS, so any inline `top` is cleared instead. */
+    var PILLARS_MOBILE_QUERY = "(max-width: 760px)";
+
+    function placePillarsTab() {
+        if (!pillarsTab || !definitionText) return;
+        if (!window.matchMedia(PILLARS_MOBILE_QUERY).matches) {
+            pillarsTab.style.top = "";
+            return;
+        }
+        var line = definitionText.getBoundingClientRect();
+        pillarsTab.style.top = Math.round(line.bottom + 26) + "px";
+    }
+
     if (pillarsTab && pillarsPanel) {
+        var pillarsCloseBtn = document.getElementById("pillars-close");
+        if (pillarsCloseBtn) {
+            pillarsCloseBtn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                setPillars(false);
+            });
+        }
+
+        placePillarsTab();
+        window.addEventListener("resize", placePillarsTab);
+        /* The definition only reaches its final place once the intro has run. */
+        document.addEventListener("counter:arm-interaction", placePillarsTab, { once: true });
+
         pillarsTab.addEventListener("click", function (e) {
             e.preventDefault();
             e.stopPropagation();
@@ -590,6 +704,21 @@
                 .set(hint, { display: "none" })
                 .call(function () { hintDone = true; });
         }
+    }
+
+    /* The mobile-only More group in the canvas menu. Same open/close shape as
+       the footer's expand toggle, but driving a CSS grid track rather than an
+       animated height, so it opens to the list's real size. */
+    var moreGroup = document.getElementById("canvas-menu-more");
+    var moreToggle = document.getElementById("canvas-menu-more-toggle");
+
+    if (moreGroup && moreToggle) {
+        moreToggle.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var open = !moreGroup.classList.contains("is-open");
+            moreGroup.classList.toggle("is-open", open);
+            moreToggle.setAttribute("aria-expanded", String(open));
+        });
     }
 
     var expandToggle = document.getElementById("grid-expand-toggle");

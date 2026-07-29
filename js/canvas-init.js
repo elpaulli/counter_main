@@ -68,21 +68,40 @@ function layoutForFilter(manifest, filterId) {
     return (filter && filter.layout) || "scatter";
 }
 
+/* An arrangement's reel side, from manifest.views. */
+function viewSide(manifest, viewId) {
+    const v = (manifest.views || []).find(function (x) { return x.id === viewId; });
+    return v ? v.side : null;
+}
+
 /* Which edge a reel strip runs along. */
 function sideForFilter(manifest, filterId) {
     const filter = filterById(manifest, filterId);
     return (filter && filter.side) || "right";
 }
 
-const OPPOSITE = { left: "right", right: "left", top: "bottom", bottom: "top" };
+/* Where a filter's copy goes, given where its strip runs. "center" has no
+   opposite edge — the strip owns the middle — so its copy splits into a band
+   above and a band below it. */
+const OPPOSITE = {
+    left: "right", right: "left", top: "bottom", bottom: "top", center: "split",
+    /* A rising diagonal leaves the top-left and bottom-right triangles clear;
+       the copy takes the top-left one. */
+    diagonal: "corner"
+};
 
 /* Where the filter's copy panel goes: opposite the strip, so the words sit in
    the half of the frame the images have left empty. Derived rather than
    declared, so the manifest's `side` is the only place the pairing lives. */
 function panelSideForFilter(manifest, filterId) {
     const filter = filterById(manifest, filterId);
-    if (!filter || filter.layout !== "reel") return "left";
-    return OPPOSITE[filter.side] || "left";
+    if (filter) {
+        if (filter.layout !== "reel") return "left";
+        return OPPOSITE[filter.side] || "left";
+    }
+    /* Views aren't in `filters` — look them up by their own side. */
+    const side = viewSide(manifest, filterId);
+    return side ? (OPPOSITE[side] || "left") : "left";
 }
 
 /* Fisher-Yates, in place */
@@ -164,22 +183,42 @@ function buildMenu(manifest, handlers) {
     const optionsWrap = document.getElementById("canvas-menu-options");
     const clearBtn = document.getElementById("canvas-menu-clear");
     const burger = document.getElementById("canvas-menu-burger");
+    const viewsWrap = document.getElementById("canvas-menu-views");
     if (!menu || !toggle || !label || !optionsWrap) return;
 
-    const buttons = manifest.filters.map(function (filter) {
+    function addOption(wrap, id, text, kind) {
         const btn = document.createElement("button");
         btn.className = "canvas-menu-option";
         btn.type = "button";
-        btn.textContent = filter.label;
-        btn.dataset.filter = filter.id;
+        btn.textContent = text;
+        btn.dataset.filter = id;
+        btn.dataset.kind = kind;
         btn.setAttribute("aria-pressed", "false");
-        optionsWrap.appendChild(btn);
+        wrap.appendChild(btn);
         return btn;
+    }
+
+    /* One list, two groups. Filters change which images are shown; views
+       re-arrange the ones already there. They share the label, the pressed
+       state and the clear button, so `buttons` spans both — choosing either
+       must un-choose whatever was chosen before. */
+    const buttons = manifest.filters.map(function (filter) {
+        return addOption(optionsWrap, filter.id, filter.label, "filter");
     });
+
+    const views = manifest.views || [];
+    if (viewsWrap) {
+        views.forEach(function (view) {
+            buttons.push(addOption(viewsWrap, view.id, view.label, "view"));
+        });
+    }
 
     let open = false;
     let busy = false;
     let current = null;
+    /* "filter" or "view" — clearing has to undo whichever kind is showing, and
+       the two leave the canvas by different routes. */
+    let currentKind = null;
 
     function setOpen(next) {
         open = next;
@@ -198,6 +237,7 @@ function buildMenu(manifest, handlers) {
        clearing. */
     function setActive(filterId, btn) {
         current = filterId;
+        currentKind = btn ? btn.dataset.kind : null;
         label.textContent = filterId ? BASE_LABEL + " — " + btn.textContent : BASE_LABEL;
         buttons.forEach(function (b) {
             const active = b === btn;
@@ -237,10 +277,26 @@ function buildMenu(manifest, handlers) {
 
         if (btn.dataset.filter !== current) {
             setActive(btn.dataset.filter, btn);
-            run(handlers.onSelect(current));
+            run(btn.dataset.kind === "view"
+                ? handlers.onView(current)
+                : handlers.onSelect(current));
         }
         setOpen(false);
     });
+
+    /* The two groups live in separate elements, so the views need their own
+       delegate — same handler, same lockout. */
+    if (viewsWrap) {
+        viewsWrap.addEventListener("click", function (e) {
+            const btn = e.target.closest(".canvas-menu-option");
+            if (!btn || busy) return;
+            if (btn.dataset.filter !== current) {
+                setActive(btn.dataset.filter, btn);
+                run(handlers.onView(current));
+            }
+            setOpen(false);
+        });
+    }
 
     if (clearBtn) {
         clearBtn.addEventListener("click", function (e) {
@@ -250,9 +306,13 @@ function buildMenu(manifest, handlers) {
                gathers where that filter gathered, so the move reads as the
                reverse of choosing it rather than as a separate gesture. */
             const anchor = anchorForFilter(manifest, current);
+            /* A view arrived without gathering, so it leaves without gathering:
+               an exit that collapses into a corner would not be the reverse of
+               the way in, it would be a different move entirely. */
+            const wasView = currentKind === "view";
             setActive(null, null);
             setOpen(false);
-            run(handlers.onClear(anchor));
+            run(wasView ? handlers.onClearView() : handlers.onClear(anchor));
         });
     }
 
@@ -358,7 +418,9 @@ async function boot() {
        copy panels; this module owns the canvas):
          filter-change — a switch has been asked for. filterId is null when
                          clearing back to the whole library.
-         filter-swap   — the new pool is live on the canvas. */
+         filter-spread — the new images are being placed. Not the pool swap,
+                         which happens ~1s earlier inside the pinch while
+                         nothing is visibly moving. */
     function emit(name, filterId) {
         document.dispatchEvent(new CustomEvent(name, {
             detail: {
@@ -380,7 +442,7 @@ async function boot() {
                 /* Picking a photo out of a filter's composition means nothing,
                    so selection is off for every filtered view. */
                 selectable: false,
-                onSwap: function () { emit("counter:filter-swap", filterId); }
+                onSpread: function () { emit("counter:filter-spread", filterId); }
             });
         },
 
@@ -393,11 +455,32 @@ async function boot() {
                 layout: "scatter",
                 /* Back on the whole library, so photos are selectable again */
                 selectable: true,
-                onSwap: function () { emit("counter:filter-swap", null); }
+                onSpread: function () { emit("counter:filter-spread", null); }
+            });
+        },
+
+        /* Views keep the pool and re-lay it, so there is no sample to draw and
+           nothing to prefetch — just a different arrangement of what is already
+           on the canvas. */
+        onView: function (viewId) {
+            emit("counter:filter-change", viewId);
+            return canvas.setArrangement(viewSide(manifest, viewId), function () {
+                emit("counter:filter-spread", viewId);
+            });
+        },
+
+        /* Undo a view the same way it was made — dissolve back to the field,
+           no gather, keeping the pool it was re-laying. */
+        onClearView: function () {
+            emit("counter:filter-change", null);
+            return canvas.setArrangement(null, function () {
+                emit("counter:filter-spread", null);
             });
         },
 
         onHover: function (filterId) {
+            /* Views have no pool of their own to warm. */
+            if (!filterById(manifest, filterId)) return;
             canvas.prefetch(poolFor(filterId));
         }
     });
@@ -452,6 +535,16 @@ async function boot() {
 
     document.addEventListener("counter:arm-interaction", function () {
         canvas.armFirstMove();
+
+        /* The opening view is a capped sample, but every filter draws from the
+           whole library — so once the intro is over and the canvas is idle,
+           fetch the rest in the background. Without this, a filter switch is
+           the first time those files are ever requested, and on a cold
+           connection they land late enough to read as gaps in the field.
+           Ordered so the images a filter would reach for come before the ones
+           already on screen. */
+        const warmed = manifest.images.map(function (img) { return img.src; });
+        canvas.warmAll(warmed);
     }, { once: true });
 }
 

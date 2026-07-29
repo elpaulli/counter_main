@@ -39,10 +39,11 @@
     /* ---------- SITE GRID ---------- */
     .site-grid-top-right {
         display: flex;
+        margin-top: 1em;
     }
-
-    /* Holds the view switcher, which stays available on mobile — moved to the
-       top middle, nudged down so it clears the background switcher on its right */
+    .hide_on_mobile {
+        display: none;
+    }
     .site-grid-bottom-left {
         display: flex;
         grid-column: 2/3;
@@ -59,7 +60,9 @@
         justify-content: flex-end;
         padding-bottom: 80px;
     }
-
+    .site-grid-bottom-right {
+        padding-bottom: 60px;
+    }
     /* Hide center CTAs by default on mobile */
     .site-grid-center:not(".past_presnt") {
         display: none;
@@ -132,6 +135,43 @@
    ============================================ */
 
 @media (max-width: 900px) {
+    /* ---------- FOOTER -> MENU ----------
+       The footer's links move into the canvas menu at this width (see the More
+       group), so the grid cell keeps only the copyright, centred along the very
+       bottom of the frame. */
+    .site-grid-bottom-left {
+        grid-column: 1 / -1;
+        grid-row: 3;
+        align-items: center;
+        justify-content: flex-end;
+        padding-bottom: 6px;
+        text-align: center;
+    }
+
+    .site-grid-bottom-left .grid-social-row,
+    .site-grid-bottom-left .grid-extra-links {
+        display: none;
+    }
+
+    .canvas-menu-more {
+        display: block;
+    }
+
+    /* The panel grows upward from a bar at the bottom of the frame, and with
+       More open its content can be taller than the room above it — which put
+       the filters off the top of the screen where nothing could reach them.
+       Cap it against the viewport and let the overflow scroll. */
+    .canvas-menu-panel-inner {
+        max-height: calc(100vh - 110px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: none;
+    }
+
+    .canvas-menu-panel-inner::-webkit-scrollbar {
+        display: none;
+    }
+
     /* ---------- LETTER NOTE ON TOUCH ---------- */
     /* No cursor to track, and landscape has no headroom above the logo, so the
        note is pinned under the letters by JS and reads as a centred caption */
@@ -329,11 +369,16 @@
    every panel — whatever side it was assigned — collapses to the same full
    width band near the top, and the strip is simply read behind it. */
 @media (max-width: 900px) {
+    /* Every placement collapses to the same band across the top, because every
+       strip is forced along the bottom at this width — there is no "opposite
+       side" left to place copy in, only above or below. */
     .filter-panel,
     .filter-panel[data-side="left"],
     .filter-panel[data-side="right"],
     .filter-panel[data-side="top"],
-    .filter-panel[data-side="bottom"] {
+    .filter-panel[data-side="bottom"],
+    .filter-panel[data-side="corner"],
+    .filter-panel[data-side="split"] {
         display: block;
         left: 6vw;
         right: 6vw;
@@ -422,8 +467,129 @@
 
     /* No hover on touch, so the label would never open — it stays collapsed and
        the icon alone is the target. */
+    /* Set on the tab, not the icon: the tab's horizontal offset is derived
+       from it, so changing it here keeps the icon centred. */
+    /* Sits under the definition line instead of pinned to the left edge —
+       `top` comes from JS, which measures that line because it moves with
+       the logo's height. Horizontally: pinning the tab's right edge half an
+       icon past centre leaves the icon itself dead centre. */
+    .pillars-tab {
+        --pillars-icon: 38px;
+        top: auto;
+        left: auto;
+        right: calc(50% - var(--pillars-icon) / 2);
+        transform: none;
+    }
+
+    /* Undo the desktop reorder: centred under the definition line, the icon
+       goes back to trailing the label so it lands dead on the centre point
+       the tab is pinned to. */
     .pillars-tab-icon {
-        width: 38px;
-        height: 38px;
+        order: 0;
+    }
+
+    .pillars-tab-label {
+        justify-content: flex-end;
+    }
+
+    .pillars-tab-label > span {
+        padding-left: 18px;
+        padding-right: 4px;
+    }
+
+    /* Opening hands the close over to the panel: the tab goes, and the control
+       that shuts it is inside the revealed block, so it moves with the copy.
+       visibility rather than opacity — GSAP owns the tab's opacity inline and
+       would win. */
+    body.pillars-open .pillars-tab {
+        visibility: hidden;
+        pointer-events: none;
+    }
+
+    .pillars-panel.is-open .pillars-close {
+        display: block;
+        pointer-events: auto;
+    }
+}
+
+/* ---------- SPLIT PANEL ON NARROW SCREENS ---------- */
+/* The centre strip and two bands of copy don't all fit in a phone's height, so
+   the bands take the width instead and the type comes down with them. */
+@media (max-width: 760px) {
+    /* The two bands stack instead of pinning to opposite ends of the frame. */
+    .filter-panel[data-side="split"] {
+        display: block;
+        padding: 0;
+    }
+
+    .filter-panel[data-side="split"] .filter-panel-band {
+        width: auto;
+    }
+
+    .filter-panel[data-side="split"] .filter-panel-band + .filter-panel-band {
+        margin-top: 14px;
+    }
+
+    .filter-panel[data-side="split"] .filter-panel-body {
+        font-size: 12px;
+        line-height: 1.55;
+    }
+}
+
+/* ---------- VIEW PANELS ON NARROW SCREENS ---------- */
+@media (max-width: 900px) {
+    /* The corner a diagonal leaves is small to begin with and shrinks with the
+       frame, so the copy takes the width instead. */
+    .filter-panel[data-side="corner"] {
+        left: 6vw;
+        right: 6vw;
+        top: 10vh;
+        width: auto;
+    }
+
+    /* Tabs beside their answer need a desktop's width. On a phone the column
+       of questions becomes a dropdown above the answer — six long questions
+       wrapped across a narrow screen would take more room than the answer. */
+    .filter-panel-tabs {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .filter-panel-tablist {
+        display: none;
+    }
+
+    .filter-panel-tabselect {
+        display: block;
+    }
+
+    .filter-panel-tabpanel .filter-panel-body {
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    /* The two diagonal corners collapse to one column at the top. */
+    .filter-panel-corner {
+        position: static;
+        width: auto;
+    }
+
+    .filter-panel[data-side="corner"] {
+        inset: auto;
+        top: 10vh;
+        left: 6vw;
+        right: 6vw;
+    }
+
+    .filter-panel-corner-br {
+        text-align: left;
+        margin-top: 18px;
+    }
+
+    .filter-panel-wide[data-side="top"],
+    .filter-panel-wide[data-side="bottom"] {
+        width: auto;
+        left: 6vw;
+        right: 6vw;
     }
 }

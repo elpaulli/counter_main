@@ -49,8 +49,8 @@
         -1,
         1
       ],
-      "layout": "scatter",
-      "side": null
+      "layout": "reel",
+      "side": "center"
     },
     {
       "id": "beverages",
@@ -77,6 +77,23 @@
       ],
       "layout": "reel",
       "side": "top"
+    }
+  ],
+  "views": [
+    {
+      "id": "season-pass",
+      "label": "Season Pass",
+      "side": "diagonal"
+    },
+    {
+      "id": "private-events",
+      "label": "Private Events",
+      "side": "diagonal"
+    },
+    {
+      "id": "faq",
+      "label": "Frequently Asked Questions",
+      "side": "bottom"
     }
   ],
   "introCaps": {
@@ -560,7 +577,7 @@
       ]
     },
     {
-      "src": "images/design/GN104711(1).jpg",
+      "src": "images/design/GN104711%281%29.jpg",
       "folder": "design",
       "filters": [
         "design"
@@ -756,14 +773,14 @@
       ]
     },
     {
-      "src": "images/details/Counter--Photography_uchi4_DSC_0144-(1).jpg",
+      "src": "images/details/Counter--Photography_uchi4_DSC_0144-%281%29.jpg",
       "folder": "details",
       "filters": [
         "details"
       ]
     },
     {
-      "src": "images/details/Counter--Photography_uchi4_DSC_0249-(1).jpg",
+      "src": "images/details/Counter--Photography_uchi4_DSC_0249-%281%29.jpg",
       "folder": "details",
       "filters": [
         "details"
@@ -966,105 +983,105 @@
       ]
     },
     {
-      "src": "images/menu/Beethoven+Menu.webp",
+      "src": "images/menu/Beethoven%2BMenu.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Carolina+kaiseki+menu.webp",
+      "src": "images/menu/Carolina%2Bkaiseki%2Bmenu.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Covers+Menu+Back.webp",
+      "src": "images/menu/Covers%2BMenu%2BBack.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Covers+Menu.webp",
+      "src": "images/menu/Covers%2BMenu.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Curry+-+Fall+2023.webp",
+      "src": "images/menu/Curry%2B-%2BFall%2B2023.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Fire+Menu+Back.webp",
+      "src": "images/menu/Fire%2BMenu%2BBack.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Fire+Menu.webp",
+      "src": "images/menu/Fire%2BMenu.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Greatest+hits+back.webp",
+      "src": "images/menu/Greatest%2Bhits%2Bback.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Greatest+hits.webp",
+      "src": "images/menu/Greatest%2Bhits.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Hannibal+-+Halloween+2023.webp",
+      "src": "images/menu/Hannibal%2B-%2BHalloween%2B2023.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/John+Williams+Menu+Back.webp",
+      "src": "images/menu/John%2BWilliams%2BMenu%2BBack.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/John+Williams+Menu.webp",
+      "src": "images/menu/John%2BWilliams%2BMenu.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Modern+Menu.jpg",
+      "src": "images/menu/Modern%2BMenu.jpg",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Stadium+Arcadium+Menu+Back.webp",
+      "src": "images/menu/Stadium%2BArcadium%2BMenu%2BBack.webp",
       "folder": "menu",
       "filters": [
         "menus"
       ]
     },
     {
-      "src": "images/menu/Stadium+Arcadium+Menu.webp",
+      "src": "images/menu/Stadium%2BArcadium%2BMenu.webp",
       "folder": "menu",
       "filters": [
         "menus"
@@ -1106,7 +1123,7 @@
       ]
     },
     {
-      "src": "images/beverages/GN104774(1).jpg",
+      "src": "images/beverages/GN104774%281%29.jpg",
       "folder": "beverages",
       "filters": [
         "beverages"
@@ -1134,7 +1151,7 @@
       ]
     },
     {
-      "src": "images/beverages/GN104903(1).jpg",
+      "src": "images/beverages/GN104903%281%29.jpg",
       "folder": "beverages",
       "filters": [
         "beverages"

@@ -13,10 +13,12 @@ Each filter also carries:
   layout  what the images do after gathering — "scatter" back into the 3D field,
           or "reel" into a scrolling strip.
 
-  side    which edge a "reel" strip runs along: "left"/"right" scroll
-          vertically, "top"/"bottom" scroll horizontally. The filter's copy
-          panel is placed on the opposite side automatically, so this is the
-          only place the pairing is declared.
+  side    where a "reel" strip runs: "left"/"right" scroll vertically,
+          "top"/"bottom" scroll horizontally along that edge, and "center" runs
+          horizontally through the middle of the frame with larger images. The
+          filter's copy panel is placed opposite automatically — for "center"
+          that means split above and below the strip — so this is the only
+          place the pairing is declared.
 
 INTRO_CAPS limits how many images a folder may contribute to the opening
 (unfiltered) view, so a folder can be present there without dominating it while
@@ -29,6 +31,7 @@ Run from the project root after adding or removing images:
 
 import json
 import os
+from urllib.parse import quote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IMAGES_DIR = os.path.join(ROOT, "images")
@@ -42,9 +45,19 @@ FILTERS = [
     ("experience", "the Experience", ["experience"], [-1, -1], "reel",    "right"),
     ("design",     "the Design",     ["design"],     [ 1, -1], "reel",    "bottom"),
     ("details",    "the Details",    ["details"],    [ 1,  1], "reel",    "left"),
-    ("menus",      "the Menus",      ["menu"],       [-1,  1], "scatter", None),
+    ("menus",      "the Menus",      ["menu"],       [-1,  1], "reel",    "center"),
     ("beverages",  "the Beverages",  ["beverages"],  [ 0,  1], "reel",    "right"),
     ("team",       "the Team",       ["team"],       [ 0,  0], "reel",    "top"),
+]
+
+# Arrangements of whatever the canvas is already showing. Unlike FILTERS these
+# own no folder: they re-lay the images currently in play rather than swapping
+# the pool, which is why choosing one skips the gather-into-a-corner entirely —
+# there is no pool change to hide. id -> (label, reel side)
+VIEWS = [
+    ("season-pass",    "Season Pass",                "diagonal"),
+    ("private-events", "Private Events",             "diagonal"),
+    ("faq",            "Frequently Asked Questions", "bottom"),
 ]
 
 # Most images a folder may contribute to the opening, unfiltered view. Folders
@@ -56,7 +69,15 @@ INTRO_CAPS = {
 
 
 def folder_images(folder):
-    """Image paths in one folder, sorted, web-relative, skipping dotfiles."""
+    """Image paths in one folder, sorted, web-relative, skipping dotfiles.
+
+    Filenames are percent-encoded. This matters more than it looks: "+" is a
+    legal path character meaning a literal plus, but a great many hosts and CDNs
+    still decode it as a space, so "Beethoven+Menu.webp" is fetched as
+    "Beethoven Menu.webp" and 404s in production while working perfectly from a
+    local server. Encoding to %2B is unambiguous everywhere, and does the same
+    for parentheses, spaces and anything else that turns up in a filename later.
+    """
     path = os.path.join(IMAGES_DIR, folder)
     if not os.path.isdir(path):
         return []
@@ -64,7 +85,7 @@ def folder_images(folder):
         n for n in os.listdir(path)
         if not n.startswith(".") and n.lower().endswith(EXTENSIONS)
     ]
-    return ["images/%s/%s" % (folder, n) for n in sorted(names)]
+    return ["images/%s/%s" % (folder, quote(n)) for n in sorted(names)]
 
 
 def main():
@@ -95,6 +116,10 @@ def main():
             }
             for fid, label, folders, anchor, layout, side in FILTERS
         ],
+        "views": [
+            {"id": vid, "label": label, "side": side}
+            for vid, label, side in VIEWS
+        ],
         "introCaps": INTRO_CAPS,
         "images": images,
     }
@@ -110,6 +135,8 @@ def main():
         count = sum(1 for i in images if fid in i["filters"])
         print("  %-11s %-16s %3d  anchor %-9s %-8s %s"
               % (fid, label, count, anchor, layout, side or "-"))
+    for vid, label, side in VIEWS:
+        print("  %-11s %-16s %3s  %-9s %-8s %s" % (vid, label, "-", "-", "view", side))
     if INTRO_CAPS:
         print("  intro caps: %s" % INTRO_CAPS)
 
