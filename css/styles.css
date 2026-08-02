@@ -99,11 +99,8 @@
 .definition-phonetic {
     opacity: 0;
     transform: translateY(20px);
-    /* Single grid cell everything shares, so the logos stack for the crossfade
-       while the container still sizes itself to their natural height */
     display: grid;
     align-items: center;
-    /* Containing block for the rotate prompt */
     position: relative;
 }
 
@@ -115,13 +112,9 @@
     max-height: 130px;
     display: block;
     opacity: 0;
-    /* Settled state: a solid dark mark on the light background. During the
-       black loading screen `body.intro` flips it light; when the reveal begins
-       that class drops and it eases back to dark over the expansion. */
     fill: var(--fg);
     transition: fill 1.1s ease;
     will-change: opacity;
-    /* The overlay is pointer-events: none, so only the visible logo opts back in */
     pointer-events: none;
 }
 
@@ -136,22 +129,16 @@
     max-width: 800px;
     color: var(--fg);
     transition: color 1.1s ease;
-    /* Reserve the tallest copy's height up front. The overlay is a centred
-       column, so a change in line count here would otherwise shove the logo. */
     min-height: 4.8em;
     margin-top: 24px;
 }
 
-/* ---------- LOADING COUNTER (0 → 100, intro only) ---------- */
-/* Pinned to the bottom-centre of the screen, out of the centred overlay's flow.
-   It's a descendant of the overlay (z-index stacking context) so it still paints
-   above the loader curtain. */
 .loading-counter {
     position: fixed;
-    left: 50%;
-    bottom: 34px;
-    transform: translateX(-50%);
-    font-family: var(--font-sans);
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-display);
     font-size: clamp(13px, 1.5vw, 17px);
     letter-spacing: 0.14em;
     line-height: 1;

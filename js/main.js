@@ -8,13 +8,11 @@
     const definitionPhonetic = document.querySelector(".definition-phonetic");
     const definitionText = document.querySelector(".definition-text");
     const loadingCounter = document.getElementById("loading-counter");
+    const logoO = document.querySelector(".logo-o");
+    const logoOStars = document.querySelector(".logo-o-stars");
     const brandMark = document.querySelector(".brand-mark");
     const siteGrid = document.getElementById("site-grid");
     const canvasMenu = document.getElementById("canvas-menu");
-
-    /* The counter climbs to 93 on this fixed ramp, then waits on the real load
-       before finishing to 100. COLLAPSE_S is how long the loader box takes to
-       shrink to nothing. (The 2-chunk zoom's length lives in infinite-canvas.js.) */
     const COUNT_RAMP_S = 2.0;
     const COLLAPSE_S = 0.9;
 
@@ -29,12 +27,20 @@
         gsap.set(definitionPhonetic, { opacity: 0, y: 20 });
 
         const counterProxy = { v: 0 };
+
+        function placeLoadingCounterAtO() {
+            if (!loadingCounter || !logoO) return;
+            var r = logoO.getBoundingClientRect();
+            loadingCounter.style.left = Math.round(r.left + r.width / 2) + "px";
+            loadingCounter.style.top = Math.round(r.top + r.height / 2) + "px";
+        }
+
         function paintCounter() {
             if (loadingCounter) loadingCounter.textContent = Math.round(counterProxy.v);
         }
         paintCounter();
 
-       
+
         let reached93 = false;
         let loadDone = false;
         let finished = false;
@@ -52,21 +58,24 @@
             loadDone = true;
             finishCounter();
         }, { once: true });
-       
+
         setTimeout(function () { loadDone = true; finishCounter(); }, CANVAS_FALLBACK_MS);
         gsap.timeline({ delay: 0.3 })
             .to(definitionPhonetic, { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" })
             .to(definitionText, { opacity: 1, duration: 0.8, ease: "power2.out" }, "-=0.3")
-            .to(loadingCounter, { opacity: 1, duration: 0.6, ease: "power2.out" }, "-=0.2")
+            .call(placeLoadingCounterAtO, null, "-=0.2")
+            .to(logoOStars, { opacity: 0, duration: 0.35, ease: "power2.out" })
+            .to(loadingCounter, { opacity: 1, duration: 0.6, ease: "power2.out" }, "<")
             .to(counterProxy, {
                 v: 93, duration: COUNT_RAMP_S, ease: "power1.out", onUpdate: paintCounter
-            }, ">-0.1")
+            }, "-=0.2")
             .call(function () { reached93 = true; finishCounter(); });
 
         function beginReveal() {
             const tl = gsap.timeline();
 
             tl.to(loadingCounter, { opacity: 0, duration: 0.4, ease: "power2.in" }, 0);
+            tl.to(logoOStars, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0.15);
 
             tl.add(function () { document.body.classList.remove("intro"); }, 0);
 
