@@ -29,12 +29,6 @@
     font-display: swap;
 }
 
-@font-face {
-    font-family: "Doner";
-    src: url("../fonts/doner-regulardisplay.woff2") format("woff2");
-    font-style: normal;
-    font-display: swap;
-}
 
 @font-face {
     font-family: "Humane";
@@ -44,13 +38,6 @@
     font-display: swap;
 }
 
-@font-face {
-    font-family: "Tiempos";
-    src: url("../fonts/tiempos-headline-semibold.woff") format("woff");
-    font-weight: 600;
-    font-style: normal;
-    font-display: swap;
-}
 
 /* ---------- SITE DESIGN TOKENS ---------- */
 /* Overrides base.css defaults. Light-theme values are inherited from base. */
