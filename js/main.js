@@ -459,8 +459,20 @@
         });
 
         /* Choosing a filter is a different intent — put the canvas back. */
-        document.addEventListener("counter:filter-change", function () {
+        document.addEventListener("counter:filter-change", function (e) {
             setPillars(false);
+
+            /* Mobile only: the tab sits pinned directly under the definition
+               line there, so it must fade with it or it's left stranded over
+               the filter copy. On desktop the tab is pinned to the left edge
+               instead — clear of the filter panel regardless — so it stays put. */
+            if (window.matchMedia(PILLARS_MOBILE_QUERY).matches) {
+                var filtered = Boolean(e.detail && e.detail.filterId);
+                pillarsTab.style.pointerEvents = filtered ? "none" : "";
+                gsap.to(pillarsTab, {
+                    opacity: filtered ? 0 : 1, duration: 0.5, ease: "power2.out"
+                });
+            }
         });
     }
 
