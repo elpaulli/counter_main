@@ -19,8 +19,11 @@ const INTRO_SAFETY_MS = 14000;
 /* Ceiling on how many distinct images any one view draws from. The canvas fills
    hundreds of planes by repeating this pool, so the cap costs nothing visually
    while keeping the intro download (and every filter switch after it) to a fixed
-   budget instead of scaling with the library. */
-const POOL_LIMIT = 60;
+   budget instead of scaling with the library. Lower on touch: each distinct
+   image is a full-res GPU texture, and a phone has far less memory to hold
+   them in than a desktop does. */
+const isTouch = window.matchMedia("(pointer: coarse)").matches;
+const POOL_LIMIT = isTouch ? 36 : 60;
 
 /* Where each menu item's images gather during a switch, in normalised screen
    coords: x -1 = left / +1 = right, y -1 = bottom / +1 = top. Used only if the

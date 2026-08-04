@@ -343,6 +343,18 @@ const MAX_CONCURRENT_LOADS = 6;
    queued ahead of something the viewer suddenly needs. */
 const WARM_BATCH = 4;
 
+/* Resident GPU texture ceiling. Chunks recycle their meshes as the camera
+   moves on, but nothing used to release the *textures* those meshes had
+   pointed at — every image ever decoded sat in textureCache for the life of
+   the tab, growing without bound as someone panned around or tried a few
+   filters. That's fine on a desktop GPU; on a phone it's what was crashing
+   the tab (iOS kills a page for excessive memory, which reads as a repeated
+   reload). Once the cache holds more than this, the least-recently-used
+   textures not currently on screen or in the active pool are disposed.
+   Lower on touch: phones have far less memory to spend than a desktop. */
+const TEXTURE_CACHE_LIMIT_DESKTOP = 120;
+const TEXTURE_CACHE_LIMIT_TOUCH = 50;
+
 /* A plane only queues its (full-res) texture once it's this visible, not the
    instant it crosses INVIS_THRESHOLD. Raising the bar keeps the initial load to
    the planes actually around the viewport — the faint, far, edge-of-frustum
@@ -503,6 +515,7 @@ export function createInfiniteCanvas(options) {
     }
 
     const isTouch = window.matchMedia("(pointer: coarse)").matches;
+    const TEXTURE_CACHE_LIMIT = isTouch ? TEXTURE_CACHE_LIMIT_TOUCH : TEXTURE_CACHE_LIMIT_DESKTOP;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.25 : 1.5));
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
@@ -521,6 +534,11 @@ export function createInfiniteCanvas(options) {
     /* ---------- texture cache + throttled loading ---------- */
     const loader = new THREE.TextureLoader();
     const textureCache = new Map();
+    /* Last-touched order for textureCache, so trimTextureCache() can free the
+       coldest entries first. A monotonic counter rather than Date.now() —
+       cheaper, and all that matters is relative order. */
+    const textureLastUsed = new Map();
+    let lruClock = 0;
     const loadQueue = [];
     const prefetched = new Set();
     /* Sources that have failed once. Never requested again, and never handed to
@@ -590,10 +608,16 @@ export function createInfiniteCanvas(options) {
                     texture.minFilter = THREE.LinearMipmapLinearFilter;
                     try { renderer.initTexture(texture); } catch (e) {}
                     textureCache.set(job.src, texture);
+                    /* Stamped here too, not just in applyTexture — a warmed
+                       texture arrives with no mesh yet, and without this it
+                       would look like the coldest thing in the cache and get
+                       disposed by the very next trim before anything used it. */
+                    textureLastUsed.set(job.src, ++lruClock);
                     if (job.mesh) applyTexture(job.mesh, job.src, texture);
                     reportProgress();
                     pumpQueue();
                     pumpWarm();
+                    trimTextureCache();
                 },
                 undefined,
                 function () {
@@ -619,9 +643,54 @@ export function createInfiniteCanvas(options) {
         mesh.material.map = texture;
         mesh.material.needsUpdate = true;
         mesh.userData.hasTexture = true;
+        textureLastUsed.set(src, ++lruClock);
         const image = texture.image;
         if (image && image.height) {
             mesh.userData.aspect = image.width / image.height;
+        }
+    }
+
+    /* Every source currently worth keeping resident: on screen right now (in a
+       live chunk or the reel), or in the pool a plane could be reassigned to
+       at any moment. Anything else in textureCache is a leftover — decoded for
+       a chunk that's since scrolled away, or from a filter no longer showing —
+       and safe to free. */
+    function collectActiveSources() {
+        const active = new Set();
+        for (let i = 0; i < activePool.length; i++) active.add(activePool[i].src);
+        chunks.forEach(function (meshes) {
+            for (let i = 0; i < meshes.length; i++) {
+                if (meshes[i].userData.src) active.add(meshes[i].userData.src);
+            }
+        });
+        for (let i = 0; i < reelItems.length; i++) {
+            if (reelItems[i].userData.src) active.add(reelItems[i].userData.src);
+        }
+        return active;
+    }
+
+    /* Keeps textureCache bounded across a long session. Only runs the (cheap
+       but not free) active-source scan once the cache actually exceeds the
+       ceiling, and only ever disposes textures nothing currently needs — a
+       plane already on screen never loses its image out from under it. */
+    function trimTextureCache() {
+        if (textureCache.size <= TEXTURE_CACHE_LIMIT) return;
+        const active = collectActiveSources();
+        const candidates = [];
+        textureCache.forEach(function (texture, src) {
+            if (!texture || active.has(src)) return;
+            candidates.push(src);
+        });
+        candidates.sort(function (a, b) {
+            return (textureLastUsed.get(a) || 0) - (textureLastUsed.get(b) || 0);
+        });
+        let over = textureCache.size - TEXTURE_CACHE_LIMIT;
+        for (let i = 0; i < candidates.length && over > 0; i++) {
+            const src = candidates[i];
+            textureCache.get(src).dispose();
+            textureCache.delete(src);
+            textureLastUsed.delete(src);
+            over--;
         }
     }
 
@@ -1600,6 +1669,11 @@ export function createInfiniteCanvas(options) {
                    where "out" is. */
                 clearChunks();
                 clearReel();
+                /* The outgoing pool's textures just lost their meshes and, unless
+                   the new pool overlaps them, their protection too — free now
+                   rather than waiting for the next load, while it's hidden in
+                   the blur. */
+                trimTextureCache();
                 reelActive = wantsReel;
                 if (wantsReel) {
                     reelSideWanted = o.side || "right";
@@ -1781,6 +1855,7 @@ export function createInfiniteCanvas(options) {
             clearReel();
             textureCache.forEach(function (t) { if (t) t.dispose(); });
             textureCache.clear();
+            textureLastUsed.clear();
             geometry.dispose();
             pool.forEach(function (m) { m.material.dispose(); });
             renderer.dispose();
