@@ -12,17 +12,17 @@
     <meta property="og:type" content="website">
     <meta property="og:description" content="Counter- is an intimate, full sensory dining experience located in Charlotte, NC, featuring themed, rotating tasting menus created by Executive Chef and Founder Sam Hart, a 2023 James Beard Awards Finalist for Best Chef: Southeast.">
     <meta name="description" content="counter- is a story-driven dining experience in Charlotte, NC focused on producing the highest level personal memory for guests.">
+     <link rel="stylesheet" href="https://use.typekit.net/ugj2crw.css">
     <link rel="stylesheet" href="css/styles.css">
-    <!-- Every media query lives here, and it must come after styles.css so it
-         wins on equal specificity. It was never linked, so none of the
-         responsive rules in this project had been taking effect. -->
     <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/site-switcher.css">
 </head>
 <body>
 
     <div id="loader" class="loader"></div>
 
     <div class="hero-definition-overlay">
+        <img class="definition-house" id="definition-house" alt="">
         <div class="definition-phonetic">
             <svg class="definition-logo is-active" role="img" aria-label="counter-" width="1281.71" height="161" viewBox="0 0 1281.71 161" xmlns="http://www.w3.org/2000/svg">
                 <path d="M1127.7,75.04v3.908c0,9.549,7.741,17.289,17.289,17.289h44.247l0,0l0,0h9.804l0,0l0,0h45.17
@@ -91,6 +91,9 @@
                     h104.661c1.318,4.157,2.035,8.58,2.035,13.168C1076.756,70.453,1075.396,76.452,1072.973,81.876z"/>
             </svg>
         </div>
+         <!-- Stage slot: counter-'s definition is a single paragraph. Empty,
+              and folded away, until the switcher needs a tagline line. -->
+         <p class="definition-text tagline_text"></p>
          <p class="definition-text">coun·ter /ˈkoun(t)ər/ — contrary to intuition or to common-sense expectation but often nevertheless true.</p>
          <div class="loading-counter" id="loading-counter" aria-hidden="true">0</div>
     </div>
@@ -462,16 +465,9 @@
                 <div class="canvas-menu-panel-inner">
                     <div class="canvas-menu-options" id="canvas-menu-options"></div>
 
-                    <!-- Arrangements of the images already on screen, not
-                         filters over folders. Built from manifest.views. -->
                     <div class="canvas-menu-views" id="canvas-menu-views"></div>
 
-                    <!-- Mobile only. The footer's links are hidden at this
-                         width, so they live here instead, behind one more tap.
-                         The legal ones carry the same class and data-legal the
-                         footer's do, so main.js wires them without knowing
-                         they exist; Partners opts in by attribute. -->
-                    <div class="canvas-menu-more" id="canvas-menu-more">
+                     <div class="canvas-menu-more" id="canvas-menu-more">
                         <button class="canvas-menu-more-toggle" id="canvas-menu-more-toggle"
                                 type="button" aria-expanded="false" aria-controls="canvas-menu-more-list">
                             <span>More</span>
@@ -514,9 +510,7 @@
                                     <path d="M8.4 11.6h5.6"></path>
                                 </svg>
                             </a>
-                            <!-- Toggles the same partners panel as the footer
-                                 link; main.js treats both as one control. -->
-                            <button class="canvas-menu-partners" id="canvas-menu-partners" type="button"
+                             <button class="canvas-menu-partners" id="canvas-menu-partners" type="button"
                                     data-partners-toggle aria-expanded="false" aria-controls="partners-panel"
                                     aria-label="Our 501(c)(3) partners">
                                 <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -561,10 +555,7 @@
             </a>
             <a class="partners-item" href="https://www.thebulbgallery.org/"
                target="_blank" rel="noopener noreferrer">
-                <!-- %2B, not "+": a literal plus in a path is decoded as a space
-                     by a lot of hosts and CDNs, which 404s in production while
-                     working fine locally. Same reason the manifest is encoded. -->
-                <img src="images/The%2BBulb%2BSolo%2BLogo.webp" alt="The Bulb">
+                 <img src="images/The%2BBulb%2BSolo%2BLogo.webp" alt="The Bulb">
             </a>
             <a class="partners-item" href="https://therelatives.org/donate/"
                target="_blank" rel="noopener noreferrer">
@@ -591,6 +582,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/site-switcher.js"></script>
     <script type="importmap">
     {
         "imports": {

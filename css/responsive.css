@@ -1,11 +1,5 @@
 /* ============================================
    RESPONSIVE — ALL MEDIA QUERIES
-   ============================================
-   Two halves:
-     1. BASE LAYER  — travels with base.css to every site in the series
-     2. SITE LAYER  — this site only (gallery, menu overlay, logo concepts)
-
-   Loaded after styles.css so it wins on equal specificity.
    ============================================ */
 
 

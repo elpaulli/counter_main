@@ -1,13 +1,5 @@
 /* ============================================
    COUNTER- CLT — SITE STYLESHEET
-   ============================================
-   Structure, tokens and layout live in base.css (imported below).
-   All media queries live in responsive.css (linked after this file).
-
-   This file holds only what is specific to Counter- CLT:
-     - the font files and token overrides
-     - the hero definition overlay (logo + copy)
-     - the footer grid's extra-links expand toggle
    ============================================ */
 
 @import url("base.css");
@@ -37,10 +29,6 @@
     font-style: normal;
     font-display: swap;
 }
-
-
-/* ---------- SITE DESIGN TOKENS ---------- */
-/* Overrides base.css defaults. Light-theme values are inherited from base. */
 :root {
     --font-sans:    "Pitch-Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
     --font-display: "Doner-Bold", Georgia, serif;
@@ -60,7 +48,6 @@
     --fg-30: rgba(248, 242, 230, 0.30);
     --fg-20: rgba(248, 242, 230, 0.20);
 }
-/* ---------- BRAND MARK EXTRAS ---------- */
 .michelin_star {
     width: 25px;
     margin-top: 8px;
@@ -82,7 +69,6 @@
     text-transform: uppercase;
 }
 
-/* ---------- DEFINITION (hero overlay) ---------- */
 .definition-phonetic {
     opacity: 0;
     transform: translateY(20px);
@@ -141,18 +127,11 @@
     opacity: 0.6;
 }
 
-/* ---------- INTRO (black loading curtain) ---------- */
-/* The intro is a black curtain (#loader) over the canvas. The logo, copy and
-   counter sit on top of it in a light colour; when everything's loaded the
-   curtain fades away, the overlay switches to difference blend, and the canvas
-   scrolls into view behind it. */
 :root {
     --intro-black: #0d0d0d;
     --intro-light: #f4ede0;
 }
 
-/* The loader IS the curtain — black from the first paint, so nothing flashes
-   before the JS runs. It fades to nothing at reveal, then display:none. */
 .loader {
     background-color: var(--intro-black);
 }
@@ -169,18 +148,9 @@ body.intro .definition-logo {
 body.intro .definition-text {
     color: var(--intro-light);
 }
-
-/* ---------- IMMERSIVE STATE (added at reveal) ---------- */
-/* The overlay switches to difference blending so the mark and copy invert
-   against the canvas revealed behind the dissolving curtain. Fill/colour go
-   white because difference needs a light source to read as the backdrop's
-   inverse; over the black curtain that lands on white, so the switch is seamless
-   at the start of the reveal and only diverges (intentionally) over the photos. */
 body.is-immersive .hero-definition-overlay {
     mix-blend-mode: difference;
 }
-
-/* transition:none — this flip happens the instant the zoom lands, not eased. */
 body.is-immersive .definition-logo {
     fill: #fff;
     transition: none;
@@ -190,16 +160,9 @@ body.is-immersive .definition-text {
     color: #fff;
     transition: none;
 }
-
-/* ---------- GSAP initial states ---------- */
 .hero-definition-overlay .definition-text {
     opacity: 0;
 }
-
-/* The canvas sits behind the curtain the whole time, so it can be visible from
-   the start (base.css hides it for the old clip reveal — undo that here). The
-   cream backdrop means transparent areas of the canvas read as the light page,
-   not black. */
 .main-content {
     mix-blend-mode: normal;
     background-color: var(--bg);
@@ -249,8 +212,7 @@ body.is-immersive .definition-text {
     width: 100%;
     height: 100%;
     cursor: grab;
-    /* The intro overlay and site grid sit above this */
-    z-index: 1;
+     z-index: 1;
 }
 
 .infinite-canvas.is-dragging {
@@ -261,14 +223,8 @@ body.is-immersive .definition-text {
     display: block;
     width: 100%;
     height: 100%;
-    /* Panning owns the gesture; don't let the browser scroll instead */
     touch-action: none;
 }
-
-/* ---------- CENTRED MENU (filters the canvas) ---------- */
-/* base.css gives .bottom-bar an angled, --fg-filled bar pinned bottom-right.
-   The canvas menu wants none of that: override to a transparent, centred,
-   auto-sized container so only the Menu control itself shows. */
 .bottom-bar {
     left: 0;
     right: 0;
@@ -288,17 +244,10 @@ body.is-immersive .definition-text {
     position: relative;
     display: flex;
     flex-direction: column;
-    /* Bar and panel are one column of the same width — they share an edge, so
-       they cannot be independently sized. */
-    align-items: stretch;
+      align-items: stretch;
     width: min(92vw, 430px);
-    /* Only the control is interactive; the rest of the bar row stays clickable
-       through to the canvas */
     pointer-events: auto;
 }
-
-/* The bar. Square, not a pill — the panel stacks flush on top of it and a
-   radius at the join would leave a notch. */
 .canvas-menu-bar {
     position: relative;
     display: flex;
@@ -312,8 +261,6 @@ body.is-immersive .definition-text {
 .canvas-menu.is-open .canvas-menu-bar {
     border-color: var(--fg-70);
 }
-
-/* Label lives at the left end; the bar's own chrome is drawn by the wrapper. */
 .canvas-menu-toggle {
     flex: 1;
     min-width: 0;
@@ -336,7 +283,6 @@ body.is-immersive .definition-text {
     transition: color var(--theme-fade);
 }
 
-/* ---------- three bars ---------- */
 .canvas-menu-burger {
     flex: none;
     display: inline-flex;
@@ -395,28 +341,22 @@ body.is-immersive .definition-text {
                 visibility 0s linear 0s;
 }
 
-/* min-height:0 is what lets the track actually collapse to nothing */
 .canvas-menu-panel-inner {
     min-height: 0;
     overflow: hidden;
 }
-
-/* No padding — the rows run edge to edge so the panel reads as part of the bar */
 .canvas-menu-options {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     padding: 6px 0;
 }
-
-/* ---------- contact + social ---------- */
 .canvas-menu-foot {
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     gap: 18px;
     padding: 14px 16px 15px;
-    /* the divider the foot sits under */
     border-top: 1px solid var(--fg-20);
 }
 
@@ -473,14 +413,10 @@ body.is-immersive .definition-text {
     stroke-linecap: round;
     stroke-linejoin: round;
 }
-
-/* Round cap on a zero-length path — the lens dot, without a second shape */
 .canvas-menu-social-dot {
     stroke-width: 2.4;
 }
 
-/* Full-bleed rows, left-aligned to the label above them — a centred chip
-   floating in a 430px square panel reads as a leftover from the pill. */
 .canvas-menu-option {
     background: none;
     border: none;
@@ -539,9 +475,6 @@ body.is-immersive .definition-text {
                 margin-right 0.3s ease, visibility 0s linear 0s,
                 color var(--theme-fade);
 }
-
-/* The label keeps its own padding, so trim the gap the X would otherwise add
-   between the two. */
 .canvas-menu.has-filter .canvas-menu-toggle {
     padding-right: 6px;
 }
@@ -561,18 +494,13 @@ body.is-immersive .definition-text {
     stroke-linecap: round;
 }
 
-/* ---------- SELECTED PHOTO MARKER ---------- */
-/* Positioned entirely from JS (translate3d to the photo's projected centre), so
-   left/top stay at 0 and the transform is the only thing that moves. */
 .canvas-focus-plus {
     position: fixed;
     left: 0;
     top: 0;
     z-index: 126;
-    /* The photo behind it is the click target — see the canvas hit-test */
     pointer-events: none;
     color: #fff;
-    /* mix-blend-mode keeps it legible on a light photo as well as a dark one */
     mix-blend-mode: difference;
     opacity: 0;
     transition: opacity 0.25s ease;
@@ -592,9 +520,6 @@ body.is-immersive .definition-text {
     stroke-linecap: round;
 }
 
-/* ---------- OPENED PHOTO ---------- */
-/* The chrome is faded to nothing by GSAP; this stops the invisible layers from
-   swallowing the click that closes the photo. */
 body.photo-focus .brand-mark,
 body.photo-focus .pillars-tab,
 body.photo-focus .site-grid,
@@ -611,20 +536,13 @@ body.photo-focus .hero-definition-overlay {
     pointer-events: none;
 }
 
-/* Placement comes from data-side, which main.js stamps as the opposite of that
-   filter's strip. Note there is no `transform` in any of these rules: GSAP
-   animates the panels in on x/y, and a CSS transform is exactly what it would
-   overwrite — so centring is done with flexbox and auto margins instead. */
 .filter-panel {
     position: absolute;
     color: var(--fg);
-    /* GSAP owns opacity/visibility from here (autoAlpha); this is only the
-       resting state before any filter is chosen. */
     opacity: 0;
     visibility: hidden;
 }
 
-/* Side columns: span the full height, centre the copy within it. */
 .filter-panel[data-side="left"],
 .filter-panel[data-side="right"] {
     top: 0;
@@ -638,7 +556,6 @@ body.photo-focus .hero-definition-overlay {
 .filter-panel[data-side="left"]  { left: 6vw; }
 .filter-panel[data-side="right"] { right: 6vw; }
 
-/* Bands: a centred block clear of the horizontal strip. */
 .filter-panel[data-side="top"],
 .filter-panel[data-side="bottom"] {
     left: 0;
@@ -648,39 +565,25 @@ body.photo-focus .hero-definition-overlay {
 }
 
 .filter-panel[data-side="top"]    { top: 6vh; }
-/* Sits above the menu pill rather than behind it */
 .filter-panel[data-side="bottom"] { bottom: 16vh; }
 
-/* Split: the strip runs through the middle, so the copy takes the bands left
-   above and below it. space-between pins one band to each end, which keeps them
-   clear of the images without either needing to know how tall the strip is. */
 .filter-panel[data-side="split"] {
     inset: 0;
     width: auto;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    /* bottom clears the menu bar; top clears the site-grid chrome */
     padding: 6vh 6vw 10vh;
     text-align: center;
 }
 
-/* Wide, because the vertical budget is what's tight: a wider measure is fewer
-   lines, and fewer lines is what keeps the band clear of the images. */
 .filter-panel[data-side="split"] .filter-panel-band {
     width: min(66vw, 900px);
     margin: 0 auto;
 }
-
-/* Nothing but the first band carries a title, so the gap belongs to the title
-   rather than to every band. */
 .filter-panel[data-side="split"] .filter-panel-title {
     margin-bottom: 12px;
 }
-
-/* Set tighter than the side panels. Those have a full half-frame of height to
-   spend; these two have only the bands left over above and below the strip, and
-   every extra line of copy is a line that pushes into the images. */
 .filter-panel[data-side="split"] .filter-panel-body {
     font-size: clamp(12px, 0.95vw, 15px);
     line-height: 1.62;
@@ -703,13 +606,9 @@ body.photo-focus .hero-definition-overlay {
     opacity: 0.75;
 }
 
-/* Panels with several paragraphs (the Details, the Beverages) need the break */
 .filter-panel-body + .filter-panel-body {
     margin-top: 1.15em;
 }
-
-/* The layer is click-through so the canvas stays draggable behind it; links
-   have to opt back in. */
 .filter-panel a {
     pointer-events: auto;
     color: inherit;
@@ -717,7 +616,6 @@ body.photo-focus .hero-definition-overlay {
     text-underline-offset: 3px;
 }
 
-/* ---------- LIGHT / DARK THEME SWITCH ---------- */
 .theme-switch {
     position: relative;
     display: inline-flex;
@@ -749,13 +647,11 @@ body.photo-focus .hero-definition-overlay {
     transition: opacity 0.3s ease, transform 0.35s ease;
 }
 
-/* Light theme (default): sun shown, moon hidden */
 .theme-switch-icon-moon {
     opacity: 0;
     transform: scale(0.5) rotate(-90deg);
 }
 
-/* Dark theme: moon shown, sun hidden */
 .dark_theme .theme-switch-icon-sun {
     opacity: 0;
     transform: scale(0.5) rotate(90deg);
@@ -770,19 +666,11 @@ body.photo-focus .hero-definition-overlay {
     font-size: inherit;
     font-weight: inherit;
 }
-
-/* ---------- CURSOR HINT ---------- */
-/* A badge that trails the cursor after the reveal: a "Drag" pill with an arrow
-   bubble on each of its four sides, which becomes "Scroll" with only the top
-   and bottom arrows left before the whole thing goes.
-   Positioned entirely by GSAP (x/y from the element's top-left, offset clear of
-   the pointer), so left and top stay at 0 and the transform does all the work. */
 .cursor-hint {
     position: fixed;
     left: 0;
     top: 0;
     z-index: 300;
-    /* It teaches the canvas; it must never swallow a drag meant for it */
     pointer-events: none;
     display: grid;
     grid-template-columns: auto auto auto;
@@ -790,10 +678,7 @@ body.photo-focus .hero-definition-overlay {
     align-items: center;
     justify-items: center;
     row-gap: 6px;
-    /* Column spacing lives on the side arrows' own margins, not here: the gap
-       would survive them collapsing and leave a hole where they used to be. */
     column-gap: 0;
-    /* JS reveals this once it has placed the badge beside the cursor */
     visibility: hidden;
 }
 
@@ -814,9 +699,6 @@ body.photo-focus .hero-definition-overlay {
     padding: 11px 18px;
     border-radius: 999px;
     white-space: nowrap;
-    /* The pill must not resize under the word swap, or the arrows centred on it
-       jump sideways mid-transition. "Scroll" is the wider word and measures
-       ~99px with this padding, so it sets the floor for both. */
     min-width: 100px;
     text-align: center;
 }
@@ -830,13 +712,10 @@ body.photo-focus .hero-definition-overlay {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    /* The side pair collapse their width on the swap to "Scroll"; without this
-       their glyph would spill out of the shrinking circle. */
     overflow: hidden;
     flex: none;
 }
 
-/* One chevron rotated to face each way, rather than four separate glyphs */
 .cursor-hint-arrow svg {
     display: block;
     width: 13px;
@@ -853,16 +732,11 @@ body.photo-focus .hero-definition-overlay {
 .cursor-hint-up svg    { transform: rotate(-90deg); }
 .cursor-hint-down svg  { transform: rotate(90deg); }
 
-/* Start invisible so nothing shows for the frame before GSAP takes over */
 .cursor-hint-label,
 .cursor-hint-arrow {
     opacity: 0;
 }
 
-/* ---------- PARTNERS PANEL ---------- */
-/* Sits where the definition line is (JS pins `top` to that element's box) and
-   is centred with auto margins rather than a transform — GSAP animates y on the
-   way in, and a CSS transform is what it would overwrite. */
 .partners-panel {
     position: fixed;
     left: 0;
@@ -932,8 +806,6 @@ body.photo-focus .hero-definition-overlay {
     opacity: 1;
 }
 
-/* The three logos are different formats and proportions; contain them in a
-   shared box so the row reads as one line rather than three sizes. */
 .partners-item img {
     display: block;
     width: auto;
@@ -943,34 +815,18 @@ body.photo-focus .hero-definition-overlay {
     object-fit: contain;
 }
 
-/* The canvas is dimmed to almost nothing behind the panel — take it out of the
-   click path too, so a click meant to dismiss the panel isn't also read as a
-   drag or a photo selection. */
 body.partners-open .infinite-canvas {
     pointer-events: none;
 }
 
-/* ============================================
-   LEGAL — TERMS OF USE / PRIVACY POLICY
-   ============================================
-   Modelled on the Codrops "responsive and SEO-friendly WebGL text" layout: a
-   centred column, a small label over an enormous condensed heading, oversized
-   body copy, and a mask reveal as each block enters the viewport. The type is
-   real DOM text throughout — the whole point of that piece is that the
-   spectacle never costs you the readable, selectable, indexable content.
-
-   Scrolling happens only inside .legal-scroll. Palette is the site's own
-   (--bg / --fg); Humane is scoped to this section and used nowhere else. */
 
 .legal_scroll_wrapper {
     position: fixed;
     inset: 0;
     z-index: 400;
     background: var(--bg-90);
-    /* GSAP owns these from here (autoAlpha) */
     opacity: 0;
     visibility: hidden;
-    /* The wrapper itself never scrolls — the inner column does */
     overflow: hidden;
 }
 
@@ -978,7 +834,6 @@ body.partners-open .infinite-canvas {
     height: 100%;
     overflow-y: auto;
     overflow-x: hidden;
-    /* Reaching either end must not start scrolling the page behind it */
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -996,11 +851,9 @@ body.partners-open .infinite-canvas {
     font-family: "Humane", var(--font-display), sans-serif;
     font-weight: 900;
     text-align: center;
-    /* Scroll velocity drives this — see the JS. At rest it is 0. */
     transform: skewY(var(--legal-skew, 0deg));
 }
 
-/* ---------- masthead ---------- */
 .legal-head {
     margin-bottom: 12vh;
 }
@@ -1023,7 +876,6 @@ body.partners-open .infinite-canvas {
     margin: 0;
 }
 
-/* ---------- body ---------- */
 .legal-h {
     font-size: clamp(30px, 5.4vw, 96px);
     line-height: 0.9;
@@ -1074,15 +926,6 @@ body.partners-open .infinite-canvas {
     margin: clamp(80px, 16vh, 260px) 0 0;
 }
 
-/* ---------- mask reveal ----------
-   Each block is clipped away at its own baseline and lifted into place as it
-   enters the view — the DOM equivalent of the tutorial's vertex/fragment
-   reveal, where the text appears to rise out of nothing.
-
-   The clip lives on an inner span, and the class that releases it is set on the
-   *parent* block. That split is deliberate: the observer watching for entry has
-   to measure an element the clip hasn't already reduced to zero area, or the
-   hidden state defeats the very thing meant to undo it. */
 .legal-reveal {
     display: block;
     clip-path: inset(0 -0.15em 105% -0.15em);
@@ -1101,16 +944,9 @@ body.partners-open .infinite-canvas {
         opacity 0.5s ease;
 }
 
-/* The masthead's two lines arrive as a pair rather than together */
 .legal-title.legal-in > .legal-reveal {
     transition-delay: 0.14s;
 }
-
-/* ---------- scroll-velocity chromatic shift ----------
-   Stands in for the tutorial's post-processing RGB split: two offset copies of
-   the display type, pushed apart by how fast you are scrolling and gone the
-   moment you stop. Kept off the paragraphs — a text-shadow on that much heavy
-   type at that size is the one thing here that would cost frames. */
 .legal-title,
 .legal-h,
 .legal-outro {
@@ -1119,7 +955,6 @@ body.partners-open .infinite-canvas {
         var(--legal-shift, 0px) 0 0 rgba(30, 160, 244, 0.45);
 }
 
-/* ---------- close ---------- */
 .legal-close {
     position: fixed;
     top: clamp(18px, 3vh, 40px);
@@ -1143,18 +978,10 @@ body.partners-open .infinite-canvas {
     transform: rotate(45deg);
 }
 
-/* While a document is open the canvas is dimmed and must not take clicks */
 body.legal-open .infinite-canvas {
     pointer-events: none;
 }
 
-/* ---------- LEGAL CURSOR ----------
-   Every pixel of the panel dismisses it, so the pointer says so: an X in a
-   circle, hotspot dead centre.
-
-   Spelled out twice because a cursor image is a data URI and a data URI cannot
-   read --fg — the stroke has to be baked in, so light and dark each need their
-   own copy. The trailing `pointer` is the fallback if the image is refused. */
 body.legal-open .legal_scroll_wrapper,
 body.legal-open .legal_scroll_wrapper * {
     cursor:
@@ -1170,10 +997,6 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 }
 
 .pillars-tab {
-    /* Desktop: pinned to the left edge, vertically centred on the page. Mobile
-       moves it under the definition line instead — see the media query, which
-       also reorders the icon/label so the reveal still opens away from the
-       pinned edge. */
     position: fixed;
     top: 50%;
     left: var(--grid-pad);
@@ -1202,8 +1025,6 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 .pillars-tab-label {
     display: flex;
     align-items: center;
-    /* Text hugs the icon (now the leading element, see .pillars-tab-icon's
-       order) and reveals outward to the right as the label opens. */
     justify-content: flex-start;
     max-width: 0;
     overflow: hidden;
@@ -1233,8 +1054,6 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 }
 
 .pillars-tab-icon {
-    /* Leads the label in visual order (it's last in the DOM) so it sits at
-       the pinned left edge and stays put while the label opens beside it. */
     order: -1;
     display: inline-flex;
     align-items: center;
@@ -1259,8 +1078,6 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
 }
 
 
-/* Mobile only — see the media query. Hidden here so it never shows on desktop,
-   where the tab itself is the close. */
 .pillars-close {
     display: none;
     margin: 0 auto 20px;
@@ -1272,7 +1089,6 @@ body.dark_theme.legal-open .legal_scroll_wrapper * {
     font-family: var(--font-display);
     font-size: 26px;
     line-height: 1;
-    /* A plus turned 45 degrees, matching the close on the other panels. */
     transform: rotate(45deg);
 }
 
@@ -1323,10 +1139,6 @@ body.pillars-open .infinite-canvas {
     pointer-events: none;
 }
 
-/* ---------- MENU: ARRANGEMENTS ---------- */
-/* Second group in the panel, under the filters. One rule separates them: these
-   re-lay the images already on screen rather than changing which images those
-   are, and the line is the only thing saying so. */
 .canvas-menu-views {
     display: flex;
     flex-direction: column;
@@ -1335,12 +1147,10 @@ body.pillars-open .infinite-canvas {
     border-top: 1px solid var(--fg-20);
 }
 
-/* Same control as a filter row — they behave identically once clicked. */
 .canvas-menu-views .canvas-menu-option {
     text-align: left;
 }
 
-/* ---------- MENU: PARTNERS ICON ---------- */
 .canvas-menu-partners {
     display: inline-flex;
     align-items: center;
@@ -1368,13 +1178,6 @@ body.pillars-open .infinite-canvas {
     stroke-width: 1.5;
 }
 
-/* ---------- PANEL: DIAGONAL'S CORNER ---------- */
-/* A rising strip leaves the top-left and bottom-right triangles clear. The copy
-   takes the top-left one, and stays narrow: the further it reaches toward the
-   middle the closer it gets to the strip's own band. */
-/* A rising strip leaves two clear triangles, not one — top-left and
-   bottom-right. So the panel itself spans the frame and its blocks take a
-   corner each; a filter with only one block just uses the top-left. */
 .filter-panel[data-side="corner"] {
     inset: 0;
     width: auto;
@@ -1382,9 +1185,6 @@ body.pillars-open .infinite-canvas {
 
 .filter-panel-corner {
     position: absolute;
-    /* Narrow on purpose. The clear region is a triangle, so a rectangle in it
-       trades width for height at 45 degrees — every pixel wider is a pixel the
-       block has to lose off its far end before its corner meets the strip. */
     width: min(22vw, 300px);
 }
 
@@ -1392,9 +1192,6 @@ body.pillars-open .infinite-canvas {
     top: 8vh;
     left: 5vw;
 }
-
-/* Ranged off the opposite corner, and right-aligned into it, so the block reads
-   as belonging to that end of the diagonal rather than drifting in the middle. */
 .filter-panel-corner-br {
     bottom: 11vh;
     right: 5vw;
@@ -1414,8 +1211,6 @@ body.pillars-open .infinite-canvas {
 .filter-panel-alert {
     color: var(--accentColor);
 }
-
-/* Set smaller than a side panel's: these blocks have a fraction of the height. */
 .filter-panel[data-side="corner"] .filter-panel-body {
     font-size: clamp(10px, 0.78vw, 12px);
     line-height: 1.55;
@@ -1428,20 +1223,10 @@ body.pillars-open .infinite-canvas {
 .filter-panel[data-side="corner"] .filter-panel-title {
     margin-bottom: 12px;
 }
-
-/* ---------- PANEL: WIDE + COLUMNS ---------- */
-/* For a band that has to hold more than a paragraph. The width override is on
-   the panel rather than the placement, because it is the content asking for it,
-   not the side it sits on. */
 .filter-panel-wide[data-side="top"],
 .filter-panel-wide[data-side="bottom"] {
     width: min(88vw, 1240px);
 }
-
-/* ---------- PANEL: TABBED COPY ---------- */
-/* Questions down the left, the chosen answer beside them. Showing one answer at
-   a time is what makes the type readable: six at once had to shrink to fit the
-   band, and this band is short because the strip owns the rest of the frame. */
 .filter-panel-tabs {
     display: grid;
     grid-template-columns: minmax(0, 0.4fr) minmax(0, 0.6fr);
@@ -1455,9 +1240,6 @@ body.pillars-open .infinite-canvas {
     flex-direction: column;
     gap: 1px;
 }
-
-/* The dropdown is the narrow-screen face of the same control — hidden here,
-   swapped in for the tab column by the media query. */
 .filter-panel-tabselect {
     display: none;
     pointer-events: auto;
@@ -1472,24 +1254,17 @@ body.pillars-open .infinite-canvas {
     font-size: 11px;
     letter-spacing: 1.2px;
     text-transform: uppercase;
-    /* Drop the platform chrome so it matches the rest of the site, then draw
-       the chevron back in — without it the control loses its only affordance. */
     -webkit-appearance: none;
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23212121' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 13px center;
 }
-
-/* Same reason the legal cursor is written twice: the chevron is a data URI and
-   cannot read --fg, so the dark theme needs its own copy. */
 .dark_theme .filter-panel-tabselect {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23f8f2e6' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 .filter-panel-tab {
-    /* The panel layer is click-through so the canvas stays draggable; controls
-       inside it have to opt back in, same as the links do. */
     pointer-events: auto;
     padding: 6px 0;
     background: none;
@@ -1522,8 +1297,6 @@ body.pillars-open .infinite-canvas {
 .filter-panel-tabpanel.is-active {
     display: block;
 }
-
-/* The point of the tabs: one answer, at a size worth reading. */
 .filter-panel-tabpanel .filter-panel-body {
     font-size: clamp(13px, 1.05vw, 17px);
     line-height: 1.7;
@@ -1544,16 +1317,10 @@ body.pillars-open .infinite-canvas {
     text-transform: uppercase;
     margin: 0 0 5px;
 }
-
-/* Tighter than a normal panel body: six answers have to share the band left
-   above the strip, and that band is not tall. */
 .filter-panel-columns .filter-panel-body {
     font-size: clamp(10px, 0.7vw, 11px);
     line-height: 1.42;
 }
-
-/* ---------- MENU: MORE (mobile only) ---------- */
-/* Hidden on desktop, where these links live in the footer grid. */
 .canvas-menu-more {
     display: none;
     border-top: 1px solid var(--fg-20);
@@ -1584,9 +1351,6 @@ body.pillars-open .infinite-canvas {
 .canvas-menu-more.is-open .canvas-menu-more-plus {
     transform: rotate(45deg);
 }
-
-/* Same 0fr -> 1fr track as the menu panel itself: it opens to the real height
-   of the list rather than to a guess. */
 .canvas-menu-more-list {
     display: grid;
     grid-template-rows: 0fr;

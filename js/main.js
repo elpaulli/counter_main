@@ -6,7 +6,7 @@
 
     const loader = document.getElementById("loader");
     const definitionPhonetic = document.querySelector(".definition-phonetic");
-    const definitionText = document.querySelector(".definition-text");
+    const definitionText = document.querySelector(".definition-text:not(.tagline_text)");
     const loadingCounter = document.getElementById("loading-counter");
     const logoO = document.querySelector(".logo-o");
     const logoOStars = document.querySelector(".logo-o-stars");
