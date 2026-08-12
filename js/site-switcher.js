@@ -47,6 +47,7 @@
             url: 'https://spaghett.paullindesign.com/',
             cta: 'Dai, si va da Spaghett!',
 
+            badge: SITE_ASSETS + 'spaghett-hand.png',
             mark: SITE_ASSETS + 'spaghett-mark.png',
             logo: SITE_ASSETS + 'spaghett-logo.svg',
             tagline: 'Craft Pasta & Cocktail House',
@@ -72,6 +73,7 @@
             url: 'https://counter.paullindesign.com/',
             cta: 'Travel to Counter',
 
+            badge: SITE_ASSETS + 'counter-dash.png',
             mark: '',
             logo: SITE_ASSETS + 'counter-logo.svg',
             tagline: '',
@@ -93,6 +95,7 @@
             url: 'https://okeyo.paullindesign.com/',
             cta: 'Unlock oKEYo',
 
+            badge: SITE_ASSETS + 'okeyo-mark.svg',
             mark: '',
             logo: SITE_ASSETS + 'oKEYo-logo-03.svg',
             tagline: '',
@@ -112,6 +115,7 @@
 
     const STAY_LABEL = 'Stay Here';
     const SOON_HINT = 'coming soon';
+    const NOTE_TEXT = 'Discover the rest of our family';
     const travelLabel = (site) => site.cta || 'Travel to ' + site.title;
     const stayLabel = (site) => site.stay || STAY_LABEL;
 
@@ -140,6 +144,11 @@
     const SWAP_TOTAL_S = EXCHANGE_AT + Math.max(SWAP_IN_S, LOGO_IN_S);
     const DEFAULT_BG_VEIL = 0.3;
 
+    const BADGE_TURN_DEG = 360 / SITES.length;
+    const BADGE_SPIN_S = S(0.72);
+    const BADGE_SPIN_AT = 0.1;
+    const BADGE_EASE = 'back.out(1.1)';
+
     const EXIT_S = S(0.5);
     const EXIT_COLOR = '#f5f2ed';
 
@@ -153,6 +162,10 @@
     const POINTER_QUERY = '(hover: hover) and (pointer: fine) and (min-width: 901px)';
     const mqPointer = window.matchMedia(POINTER_QUERY);
     const onPointerDevice = () => mqPointer.matches;
+
+    const mqPhone = window.matchMedia('(max-width: 900px)');
+    const CENTRE_S = S(0.7);
+    const STAGE_TOP_MIN = 104;
 
     const WHEEL_THRESHOLD = 60;
     const WHEEL_COOLDOWN_MS = 260;
@@ -298,10 +311,12 @@
     function preload() {
         SITES.forEach((site) => {
             const frame = site.frame || {};
-            [site.mark, site.logo, site.bgImage, frame.tile, frame.corner].forEach((src) => {
-                if (src) new Image().src = src;
-            });
+            [site.badge, site.mark, site.logo, site.bgImage, frame.tile, frame.corner]
+                .forEach((src) => {
+                    if (src) new Image().src = src;
+                });
             loadSvg(site.logo);
+            loadSvg(site.badge);
             facesReady(site);
         });
     }
@@ -313,6 +328,7 @@
     let backdrop = null;
     let frameEl = null;
     let hint = null;
+    let note = null;
     let navEl = null;
     let hintToX = null;
     let hintToY = null;
@@ -320,6 +336,12 @@
     let injLogo = null;
     let injTagline = null;
     let injText = null;
+    let chamber = null;
+    let hostSlot = null;
+    let swapSlots = [];
+    let badgeSlot = null;
+    let badgeTl = null;
+    let closeRing = null;
 
     function build() {
         backdrop = document.createElement('div');
@@ -357,8 +379,13 @@
         hint.className = 'switcher-label switcher-hint';
         hint.setAttribute('aria-hidden', 'true');
 
+        note = document.createElement('p');
+        note.className = 'switcher-note';
+        note.textContent = NOTE_TEXT;
+
         root.appendChild(nav);
         root.appendChild(foot);
+        root.appendChild(note);
         root.appendChild(hint);
         document.body.appendChild(root);
 
@@ -367,6 +394,7 @@
         hintToY = gsap.quickTo(hint, 'y', { duration: HINT_FOLLOW_S, ease: 'power3' });
 
         buildStage();
+        buildChamber();
         wire();
     }
 
@@ -457,6 +485,172 @@
         injTagline.className = classOf(hostTagline || hostText) + ' switcher-tagline ' + OFF;
         if (hostTagline) hostTagline.parentNode.insertBefore(injTagline, hostTagline.nextSibling);
         else injText.parentNode.insertBefore(injTagline, injText);
+    }
+
+
+    function buildChamber() {
+        chamber = document.createElement('span');
+        chamber.className = 'switcher-chamber';
+
+        hostSlot = document.createElement('span');
+        hostSlot.className = 'switcher-chamber-slot switcher-chamber-host';
+        while (trigger.firstChild) hostSlot.appendChild(trigger.firstChild);
+        chamber.appendChild(hostSlot);
+
+        swapSlots = [0, 1].map(() => {
+            const slot = document.createElement('span');
+            slot.className = 'switcher-chamber-slot switcher-chamber-swap ' + OFF;
+            slot.setAttribute('aria-hidden', 'true');
+            chamber.appendChild(slot);
+            return slot;
+        });
+
+        trigger.appendChild(chamber);
+        badgeSlot = hostSlot;
+
+        closeRing = document.createElement('span');
+        closeRing.className = 'switcher-close';
+        closeRing.setAttribute('aria-hidden', 'true');
+        trigger.appendChild(closeRing);
+    }
+
+    function badgeSvg(svg) {
+        const node = svg.cloneNode(true);
+        node.setAttribute('aria-hidden', 'true');
+        node.setAttribute('focusable', 'false');
+        return node;
+    }
+
+    function renderBadge(slot, site) {
+        const src = site.badge || '';
+        slot.dataset.badge = src;
+        slot.innerHTML = '';
+        slot.classList.toggle(OFF, !src);
+        if (!src) return;
+
+        const ready = svgReady[src];
+        if (ready) {
+            slot.appendChild(badgeSvg(ready));
+            return;
+        }
+
+        const img = document.createElement('img');
+        img.alt = '';
+        img.decoding = 'async';
+        img.addEventListener('error', () => slot.classList.add(OFF));
+        img.src = src;
+        slot.appendChild(img);
+
+        loadSvg(src).then((late) => {
+            if (!late || slot.dataset.badge !== src) return;
+            slot.innerHTML = '';
+            slot.appendChild(badgeSvg(late));
+        });
+    }
+
+    const freeSlot = () => (swapSlots[0] === badgeSlot ? swapSlots[1] : swapSlots[0]);
+
+    function chamberTurn(from, to) {
+        const n = SITES.length;
+        if (from < 0 || to < 0) return BADGE_TURN_DEG;
+
+        const fwd = (((to - from) % n) + n) % n;
+        const back = (((from - to) % n) + n) % n;
+        return fwd <= back ? BADGE_TURN_DEG * fwd : -BADGE_TURN_DEG * back;
+    }
+
+    function turnChamber(site, toHost, turn) {
+        if (!chamber || !badgeSlot) return;
+
+        const from = badgeSlot;
+        const into = toHost ? hostSlot : freeSlot();
+        if (!into || into === from) return;
+
+        if (toHost) into.classList.remove(OFF);
+        else renderBadge(into, site);
+        badgeSlot = into;
+
+        if (badgeTl) badgeTl.kill();
+        badgeTl = gsap.timeline();
+        badgeTl
+            .to(from, {
+                rotation: turn,
+                duration: BADGE_SPIN_S,
+                ease: BADGE_EASE
+            }, 0)
+            .to(from, {
+                autoAlpha: 0,
+                duration: BADGE_SPIN_S * 0.4,
+                ease: 'power1.in'
+            }, BADGE_SPIN_S * 0.55)
+            .fromTo(into,
+                { rotation: -turn, autoAlpha: 0 },
+                { rotation: 0, duration: BADGE_SPIN_S, ease: BADGE_EASE },
+                0)
+            .to(into, {
+                autoAlpha: 1,
+                duration: BADGE_SPIN_S * 0.35,
+                ease: 'power1.out'
+            }, BADGE_SPIN_S * 0.1);
+    }
+
+    function resetChamber() {
+        if (!chamber) return;
+
+        if (badgeTl) { badgeTl.kill(); badgeTl = null; }
+        gsap.killTweensOf([hostSlot].concat(swapSlots));
+        gsap.set(hostSlot, { clearProps: 'all' });
+
+        swapSlots.forEach((slot) => {
+            gsap.set(slot, { clearProps: 'all' });
+            slot.classList.add(OFF);
+            slot.innerHTML = '';
+            slot.dataset.badge = '';
+        });
+
+        badgeSlot = hostSlot;
+    }
+
+    function stageExtent() {
+        let top = Infinity;
+        let bottom = -Infinity;
+
+        Array.prototype.forEach.call(stageInner.children, (el) => {
+            if (el.offsetParent === null || el.hasAttribute('data-switcher-hidden')) return;
+            const r = el.getBoundingClientRect();
+            if (!r.height) return;
+            const dy = gsap.getProperty(el, 'y') || 0;
+            top = Math.min(top, r.top - dy);
+            bottom = Math.max(bottom, r.bottom - dy);
+        });
+
+        if (top === Infinity) {
+            const box = stageInner.getBoundingClientRect();
+            return { top: box.top, height: box.height };
+        }
+        return { top: top, height: bottom - top };
+    }
+
+    function centreOffset() {
+        const seen = stageExtent();
+        const rest = seen.top - (gsap.getProperty(stageInner, 'y') || 0);
+        const want = Math.max((window.innerHeight - seen.height) / 2, STAGE_TOP_MIN);
+        return want - rest;
+    }
+
+    function centreStage(on) {
+        if (!stageInner) return;
+
+        const to = on && mqPhone.matches ? centreOffset() : 0;
+        gsap.to(stageInner, {
+            y: to,
+            duration: CENTRE_S,
+            ease: 'power3.inOut',
+            overwrite: 'auto',
+            onComplete: () => {
+                if (!to) gsap.set(stageInner, { clearProps: 'transform' });
+            }
+        });
     }
 
 
@@ -839,6 +1033,8 @@
     function swapDefinition(site) {
         if (site.id === rendered) return;
 
+        const prev = SITES.find((s) => s.id === rendered) || null;
+        const turn = chamberTurn(SITES.indexOf(prev), SITES.indexOf(site));
         const fromHost = rendered === CURRENT_SITE;
         const toHost = site.id === CURRENT_SITE;
         const out = fromHost ? hostParts() : injParts();
@@ -857,10 +1053,13 @@
             stagger: SWAP_STEP
         }, 0);
 
-        const controls = [cta, hint].filter(Boolean);
+        const controls = [cta, hint, note].filter(Boolean);
         if (controls.length) {
             swapTl.to(controls, { opacity: 0, duration: SWAP_OUT_S, ease: 'power2.in' }, 0);
         }
+
+        swapTl.add(() => turnChamber(site, toHost, turn), BADGE_SPIN_AT);
+
         if (groundOut) {
             swapTl.to(ground(), { autoAlpha: 0, duration: SWAP_OUT_S, ease: 'power2.in' }, 0);
         }
@@ -885,6 +1084,7 @@
             focusText(site, copyOnStage(toHost));
             renderLogo(site);
             logoIn(injLogo);
+            centreStage(true);
         }, EXCHANGE_AT);
 
         swapTl.fromTo(into,
@@ -988,11 +1188,12 @@
         rendered = CURRENT_SITE;
 
         resetTitles();
+        resetChamber();
         markActive();
 
         root.classList.toggle('is-pointer', onPointerDevice());
-        overNav = pointerX != null && nearNav(pointerX, pointerY);
-        root.classList.toggle('is-near-nav', overNav);
+        overControls = pointerX != null && nearControls(pointerX, pointerY);
+        root.classList.toggle('is-near-control', overControls);
         setControls(SITES[currentIndex]);
         document.body.dataset.switcherSite = CURRENT_SITE;
 
@@ -1010,6 +1211,8 @@
         paintFrame(SITES[currentIndex]);
         gsap.set(ground(), { autoAlpha: 0 });
 
+        centreStage(true);
+
         gsap.timeline()
             .to(root, { opacity: 1, duration: PANEL_IN_S, ease: 'power2.out' }, 0)
             .fromTo(rows,
@@ -1018,6 +1221,10 @@
                 0)
             .fromTo(cta,
                 { opacity: 0, y: 14 },
+                { opacity: 1, y: 0, duration: PANEL_IN_S, ease: 'power3.out' },
+                0.1)
+            .fromTo(note,
+                { opacity: 0, y: -12 },
                 { opacity: 1, y: 0, duration: PANEL_IN_S, ease: 'power3.out' },
                 0.1);
 
@@ -1039,9 +1246,11 @@
         open = false;
         listen(false);
         clearTimeout(swapTimer);
+        centreStage(false);
         setHint(false);
-        overNav = false;
-        root.classList.remove('is-pointer', 'is-near-nav');
+        overControls = false;
+        root.classList.remove('is-pointer', 'is-near-control');
+        trigger.classList.remove('is-armed');
         document.body.classList.remove('switcher-open');
         trigger.setAttribute('aria-expanded', 'false');
 
@@ -1062,6 +1271,7 @@
             ease: 'power2.in',
             onComplete: () => {
                 root.hidden = true;
+                resetChamber();
                 clearPalette();
                 delete document.body.dataset.switcherSite;
             }
@@ -1124,13 +1334,18 @@
         clearTimeout(swapTimer);
         if (swapTl) { swapTl.kill(); swapTl = null; }
 
-        gsap.killTweensOf(ground().concat([root, hint, cta].filter(Boolean)));
+        gsap.killTweensOf(ground().concat([root, hint, cta, note].filter(Boolean)));
         gsap.killTweensOf(hostParts().concat(injParts()));
         focusToken++;
+        resetChamber();
 
         showInjected(false);
         showHost(true);
         gsap.set(hostParts(), { opacity: 1, y: 0, clearProps: 'filter' });
+        if (stageInner) {
+            gsap.killTweensOf(stageInner);
+            gsap.set(stageInner, { clearProps: 'transform' });
+        }
         rendered = CURRENT_SITE;
 
         if (injLogo && hostLogo) {
@@ -1149,10 +1364,11 @@
 
         hintWanted = false;
         hintShown = false;
-        overNav = false;
+        overControls = false;
         if (hint) gsap.set(hint, { autoAlpha: 0, scale: 0.9 });
 
-        root.classList.remove('is-pointer', 'is-near-nav');
+        root.classList.remove('is-pointer', 'is-near-control');
+        trigger.classList.remove('is-armed');
         gsap.set(root, { opacity: 0 });
         root.hidden = true;
 
@@ -1179,7 +1395,7 @@
     }
 
     function revealHint() {
-        if (!hint || hintShown || !hintWanted || overNav || pointerX == null) return;
+        if (!hint || hintShown || !hintWanted || overControls || pointerX == null) return;
 
         hintShown = true;
         gsap.set(hint, { x: pointerX, y: pointerY });
@@ -1193,21 +1409,31 @@
     }
 
     const NAV_CLEARANCE = 44;
-    let overNav = false;
+    const TRIGGER_CLEARANCE = 26;
+    let overControls = false;
 
-    function nearNav(x, y) {
-        if (!navEl) return false;
-        const r = navEl.getBoundingClientRect();
-        return x >= r.left - NAV_CLEARANCE && x <= r.right + NAV_CLEARANCE &&
-               y >= r.top - NAV_CLEARANCE && y <= r.bottom + NAV_CLEARANCE;
+    function within(el, x, y, pad) {
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return x >= r.left - pad && x <= r.right + pad &&
+               y >= r.top - pad && y <= r.bottom + pad;
     }
 
-    function setOverNav(near) {
-        if (near === overNav) return;
-        overNav = near;
-        root.classList.toggle('is-near-nav', near);
+    function nearControls(x, y) {
+        return within(navEl, x, y, NAV_CLEARANCE) ||
+               within(trigger, x, y, TRIGGER_CLEARANCE);
+    }
+
+    function setOverControls(near) {
+        if (near === overControls) return;
+        overControls = near;
+        root.classList.toggle('is-near-control', near);
         if (near) hideHint();
         else revealHint();
+    }
+
+    function setArmed(x, y) {
+        trigger.classList.toggle('is-armed', x != null && within(trigger, x, y, TRIGGER_CLEARANCE));
     }
 
     let wheelAcc = 0;
@@ -1275,7 +1501,8 @@
         pointerX = e.clientX;
         pointerY = e.clientY;
 
-        setOverNav(nearNav(pointerX, pointerY));
+        setOverControls(nearControls(pointerX, pointerY));
+        setArmed(pointerX, pointerY);
 
         if (!hintShown) {
             revealHint();
@@ -1285,6 +1512,29 @@
             hintToX(pointerX);
             hintToY(pointerY);
         }
+    }
+
+    function onTriggerEnter(e) {
+        trackPointer(e);
+        setOverControls(true);
+        setArmed(pointerX, pointerY);
+    }
+
+    function onTriggerLeave(e) {
+        trackPointer(e);
+        setOverControls(pointerX != null && nearControls(pointerX, pointerY));
+        setArmed(pointerX, pointerY);
+    }
+
+    function trackPointer(e) {
+        if (!e || typeof e.clientX !== 'number') return;
+        pointerX = e.clientX;
+        pointerY = e.clientY;
+    }
+
+    function onResize() {
+        if (!open) return;
+        centreStage(true);
     }
 
     function onPointerModeChange() {
@@ -1302,7 +1552,10 @@
         root[m]('touchend', onTouchEnd, { passive: true });
         root[m]('click', onRootClick);
         root[m]('pointermove', onPointerMove, { passive: true });
+        trigger[m]('pointerenter', onTriggerEnter, { passive: true });
+        trigger[m]('pointerleave', onTriggerLeave, { passive: true });
         document[m]('keydown', onKey);
+        window[m]('resize', onResize);
         mqPointer[m]('change', onPointerModeChange);
     }
 

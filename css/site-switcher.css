@@ -51,6 +51,11 @@
     --switcher-cta-bottom: calc(var(--grid-pad, 10px) + 46px);
     --switcher-cta-radius: 50%;
 
+    --switcher-badge-pad: 26px;
+    --switcher-badge-axis: 185%;
+
+    --switcher-note-top: calc(var(--grid-pad, 10px) + 5px);
+
     /* The previewed property's ground has to cover the host page whole —
        canvas, sky, texture and all — while still passing under the definition
        (10001) that stands on it. Every one of these builds keeps its own
@@ -61,7 +66,9 @@
 .site-switcher-trigger {
     pointer-events: auto;
     cursor: pointer;
-    transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                top 0.45s cubic-bezier(0.2, 0.8, 0.25, 1),
+                left 0.45s cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
 .site-switcher-trigger:hover {
@@ -75,6 +82,91 @@
 
 body.switcher-open .site-switcher-trigger {
     z-index: 10004;
+}
+
+.switcher-chamber {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: inherit;
+    padding: var(--switcher-badge-pad);
+    margin: calc(-1 * var(--switcher-badge-pad));
+    overflow: hidden;
+    transition: opacity 0.35s ease;
+}
+
+.switcher-chamber-slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: inherit;
+    transform-origin: 50% var(--switcher-badge-axis);
+}
+
+.switcher-chamber-swap {
+    position: absolute;
+    inset: var(--switcher-badge-pad);
+}
+
+.brand-mark .switcher-chamber-swap img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: none;
+}
+
+.switcher-chamber-swap svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    color: var(--fg);
+}
+
+.switcher-chamber-swap svg * {
+    fill: currentColor;
+}
+
+.switcher-close {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.switcher-close::before,
+.switcher-close::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 38%;
+    height: 1px;
+    background-color: var(--fg);
+    opacity: 0;
+    transition: opacity 0.3s ease,
+                transform 0.5s cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+.switcher-close::before {
+    transform: translate(-50%, -50%) rotate(45deg) scaleX(0.15);
+}
+
+.switcher-close::after {
+    transform: translate(-50%, -50%) rotate(-45deg) scaleX(0.15);
+}
+
+body.switcher-open .site-switcher-trigger.is-armed .switcher-close::before {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(45deg) scaleX(1);
+}
+
+body.switcher-open .site-switcher-trigger.is-armed .switcher-close::after {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-45deg) scaleX(1);
+}
+
+body.switcher-open .site-switcher-trigger.is-armed .switcher-chamber {
+    opacity: 0.12;
 }
 
 .site-switcher {
@@ -403,6 +495,26 @@ body.switcher-open .definition-phonetic {
     justify-content: center;
 }
 
+.switcher-note {
+    position: absolute;
+    top: var(--switcher-note-top);
+    left: 0;
+    right: 0;
+    width: min(74vw, 480px);
+    margin: 0 auto;
+    pointer-events: none;
+    text-align: center;
+    font-family: var(--font-display, Georgia, serif);
+    font-size: 0.72em;
+    font-weight: 300;
+    font-style: normal;
+    letter-spacing: 0.2em;
+    line-height: 1.6;
+    text-transform: uppercase;
+    color: var(--fg);
+    transition: color var(--theme-fade, 0.6s ease);
+}
+
 .switcher-cta {
     cursor: pointer;
 }
@@ -428,8 +540,8 @@ body.switcher-open .definition-phonetic {
     cursor: none;
 }
 
-.site-switcher.is-pointer.is-near-nav,
-.site-switcher.is-pointer.is-near-nav * {
+.site-switcher.is-pointer.is-near-control,
+.site-switcher.is-pointer.is-near-control * {
     cursor: pointer;
 }
 
@@ -631,23 +743,66 @@ body.switcher-open .mouse-trail {
 
 @media (max-width: 900px) {
     :root {
-        --switcher-item-h: 46px;
+        --switcher-item-h: 66px;
         --switcher-icon: 22px;
         --switcher-core: 10px;
         --switcher-core-active: 8px;
-        --switcher-nav-left: calc(var(--grid-pad, 10px) + 14px);
-        --switcher-nav-top: 64%;
+        --switcher-nav-top: calc(var(--grid-pad, 10px) + 6px);
         --switcher-cta-bottom: calc(var(--grid-pad, 10px) + 28px);
+        --switcher-badge-pad: 18px;
+    }
+
+    .switcher-nav {
+        left: 0;
+        right: 0;
+        top: var(--switcher-nav-top);
+        width: -moz-max-content;
+        width: max-content;
+        margin: 0 auto;
+        transform: none;
+        flex-direction: row;
+        align-items: flex-start;
+    }
+
+    .switcher-nav-item {
+        flex: 0 0 var(--switcher-item-h);
+        width: var(--switcher-item-h);
+        height: var(--switcher-icon);
+        justify-content: center;
+        gap: 0;
+    }
+
+    .switcher-nav-item:not(:last-child)::after {
+        top: 50%;
+        left: calc(50% + var(--switcher-icon) / 2 + 5px);
+        width: calc(var(--switcher-item-h) - var(--switcher-icon) - 10px);
+        height: 1px;
+        transform: translateY(-50%);
     }
 
     .switcher-nav-title {
-        font-size: 1.1em;
+        position: absolute;
+        top: calc(100% + 10px);
+        left: -80px;
+        right: -80px;
+        width: -moz-max-content;
+        width: max-content;
+        margin: 0 auto;
+        font-size: 1em;
+    }
+
+    .switcher-note {
+        top: auto;
+        bottom: calc(var(--switcher-cta-bottom) + var(--btn-h, 56px) + 20px);
+        width: min(86vw, 420px);
+        font-size: 0.68em;
+        letter-spacing: 0.16em;
     }
 }
 
 @media (max-width: 600px) {
     :root {
-        --switcher-nav-top: 62%;
+        --switcher-item-h: 58px;
     }
 
     .switcher-cta {
@@ -660,6 +815,7 @@ body.switcher-open .mouse-trail {
     .switcher-nav-icon,
     .switcher-nav-core,
     .switcher-nav-title,
+    .switcher-note,
     .switcher-label {
         transition-duration: 0.01ms;
     }
