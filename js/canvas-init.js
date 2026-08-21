@@ -23,7 +23,11 @@ const INTRO_SAFETY_MS = 14000;
    image is a full-res GPU texture, and a phone has far less memory to hold
    them in than a desktop does. */
 const isTouch = window.matchMedia("(pointer: coarse)").matches;
-const POOL_LIMIT = isTouch ? 36 : 60;
+/* This is the real floor on resident texture memory, not the cache ceiling:
+   everything in the active pool is pinned against eviction, because any plane
+   may be reassigned to any of it at any moment. Trimming can never take the
+   cache below this number, so it is what has to come down on a phone. */
+const POOL_LIMIT = isTouch ? 28 : 60;
 
 /* Where each menu item's images gather during a switch, in normalised screen
    coords: x -1 = left / +1 = right, y -1 = bottom / +1 = top. Used only if the
@@ -545,9 +549,17 @@ async function boot() {
            the first time those files are ever requested, and on a cold
            connection they land late enough to read as gaps in the field.
            Ordered so the images a filter would reach for come before the ones
-           already on screen. */
-        const warmed = manifest.images.map(function (img) { return img.src; });
-        canvas.warmAll(warmed);
+           already on screen.
+
+           Never on touch. A warmed image is not on screen and not in the pool,
+           so the cache trim frees it almost as soon as it lands — the whole
+           library gets decoded and uploaded for nothing, spiking memory on
+           every one of them, and on a phone that is both the cellular bill and
+           the thing most likely to end the tab. */
+        if (!isTouch) {
+            const warmed = manifest.images.map(function (img) { return img.src; });
+            canvas.warmAll(warmed);
+        }
     }, { once: true });
 }
 

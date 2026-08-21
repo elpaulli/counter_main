@@ -18,6 +18,7 @@
    ============================================ */
 
 import * as THREE from "three";
+import { loadButterflyMasks, BUTTERFLY_COUNT } from "./butterfly-masks.js";
 
 /* ---------- world tuning ---------- */
 const CHUNK_SIZE = 90;
@@ -322,6 +323,38 @@ const CLICK_MS = 450;
 /* Don't let a click land on a plane that is barely on screen. */
 const PICK_MIN_OPACITY = 0.3;
 
+/* Butterfly clip masks. Every plane wears one, drawn from a distance field where
+   the silhouette's own edge sits at 0.5. Opening an image drives that threshold
+   down to MASK_OPEN — past 0, so even the plane's furthest corner clears the
+   ramp and the whole rectangle shows — which grows the shape outward into the
+   full frame rather than dissolving one into the other.
+
+   The edge's width is taken from the field's own slope per screen pixel, so it
+   lands at about a pixel whatever size the plane is drawn at. MASK_SOFT_MIN is
+   only a floor for the other end of that: blown up large the slope goes to
+   nothing, and a hair of softness there hides the fact that a field this size
+   cannot hold a truly sharp corner. */
+const MASK_SOFT_MIN = 0.004;
+const MASK_OPEN = -0.08;
+
+/* How fast the field keeps falling away past the edge of the mask texture. The
+   plane can reach a little beyond that edge when its shape and the butterfly's
+   disagree sharply, and without this the clamped border would smear outward as
+   a band instead of continuing to recede. */
+const MASK_OUTSIDE = 0.6;
+
+const MASK_FRAGMENT = [
+    "#ifdef USE_ALPHAMAP",
+    "	vec2 maskUv = ( vAlphaMapUv - 0.5 ) * uMaskFit + 0.5;",
+    "	vec2 maskOver = max( abs( maskUv - 0.5 ) - 0.5, 0.0 );",
+    "	float maskDist = texture2D( alphaMap, clamp( maskUv, 0.0, 1.0 ) ).g;",
+    "	maskDist = max( maskDist - length( maskOver ) * " + MASK_OUTSIDE.toFixed(3) + ", 0.0 );",
+    "	float maskEdge = mix( 0.5, " + MASK_OPEN.toFixed(3) + ", uReveal );",
+    "	float maskAA = max( fwidth( maskDist ), " + MASK_SOFT_MIN.toFixed(4) + " );",
+    "	diffuseColor.a *= smoothstep( maskEdge - maskAA, maskEdge + maskAA, maskDist );",
+    "#endif"
+].join("\n");
+
 /* ---------- motion ---------- */
 const DRAG_SPEED = 0.05;
 const WHEEL_SPEED = 0.05;
@@ -351,9 +384,19 @@ const WARM_BATCH = 4;
    the tab (iOS kills a page for excessive memory, which reads as a repeated
    reload). Once the cache holds more than this, the least-recently-used
    textures not currently on screen or in the active pool are disposed.
-   Lower on touch: phones have far less memory to spend than a desktop. */
-const TEXTURE_CACHE_LIMIT_DESKTOP = 120;
-const TEXTURE_CACHE_LIMIT_TOUCH = 50;
+   Lower on touch: phones have far less memory to spend than a desktop.
+
+   Counting alone is not a budget, though — the library averages 1500px on its
+   long edge, which is 8.5MB of GPU memory once mipmapped, so a count that
+   looks modest still runs to hundreds of megabytes. TEXTURE_MAX_EDGE is what
+   makes the count mean something: every image is redrawn down to it before it
+   is ever uploaded. The canvas draws these a few hundred pixels wide and the
+   opened one about a screen tall, so nothing here is resolution the viewer
+   was going to see. */
+const TEXTURE_CACHE_LIMIT_DESKTOP = 90;
+const TEXTURE_CACHE_LIMIT_TOUCH = 36;
+const TEXTURE_MAX_EDGE_DESKTOP = 1280;
+const TEXTURE_MAX_EDGE_TOUCH = 1024;
 
 /* A plane only queues its (full-res) texture once it's this visible, not the
    instant it crosses INVIS_THRESHOLD. Raising the bar keeps the initial load to
@@ -516,6 +559,7 @@ export function createInfiniteCanvas(options) {
 
     const isTouch = window.matchMedia("(pointer: coarse)").matches;
     const TEXTURE_CACHE_LIMIT = isTouch ? TEXTURE_CACHE_LIMIT_TOUCH : TEXTURE_CACHE_LIMIT_DESKTOP;
+    const TEXTURE_MAX_EDGE = isTouch ? TEXTURE_MAX_EDGE_TOUCH : TEXTURE_MAX_EDGE_DESKTOP;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch ? 1.25 : 1.5));
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
@@ -562,6 +606,30 @@ export function createInfiniteCanvas(options) {
         }
     }
 
+    /* Redraws an oversized image down before it reaches the GPU. Swapping the
+       texture's source for the smaller canvas also drops the last reference to
+       the full-size decode, so the memory goes back rather than being held for
+       an upload that never uses it. */
+    function shrinkTexture(texture) {
+        const img = texture.image;
+        if (!img || !img.width || !img.height) return;
+
+        const longest = Math.max(img.width, img.height);
+        if (longest <= TEXTURE_MAX_EDGE) return;
+
+        const ratio = TEXTURE_MAX_EDGE / longest;
+        const cv = document.createElement("canvas");
+        cv.width = Math.max(1, Math.round(img.width * ratio));
+        cv.height = Math.max(1, Math.round(img.height * ratio));
+
+        const ctx = cv.getContext("2d");
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, cv.width, cv.height);
+
+        texture.image = cv;
+        texture.needsUpdate = true;
+    }
+
     function pumpQueue() {
         while (activeLoads < MAX_CONCURRENT_LOADS && loadQueue.length) {
             let bestIdx = -1;
@@ -603,6 +671,7 @@ export function createInfiniteCanvas(options) {
                 job.src,
                 function (texture) {
                     activeLoads--;
+                    shrinkTexture(texture);
                     texture.colorSpace = THREE.SRGBColorSpace;
                     texture.generateMipmaps = true;
                     texture.minFilter = THREE.LinearMipmapLinearFilter;
@@ -674,7 +743,15 @@ export function createInfiniteCanvas(options) {
        ceiling, and only ever disposes textures nothing currently needs — a
        plane already on screen never loses its image out from under it. */
     function trimTextureCache() {
-        if (textureCache.size <= TEXTURE_CACHE_LIMIT) return;
+        /* Counted rather than taken from Map.size: a file that failed is kept
+           here as a null so it is never fetched twice, and those can never be
+           disposed. Sizing the trim by the raw count would let a handful of
+           missing images stand in for live ones and evict real textures that
+           were still wanted. */
+        let live = 0;
+        textureCache.forEach(function (texture) { if (texture) live++; });
+        if (live <= TEXTURE_CACHE_LIMIT) return;
+
         const active = collectActiveSources();
         const candidates = [];
         textureCache.forEach(function (texture, src) {
@@ -684,7 +761,7 @@ export function createInfiniteCanvas(options) {
         candidates.sort(function (a, b) {
             return (textureLastUsed.get(a) || 0) - (textureLastUsed.get(b) || 0);
         });
-        let over = textureCache.size - TEXTURE_CACHE_LIMIT;
+        let over = live - TEXTURE_CACHE_LIMIT;
         for (let i = 0; i < candidates.length && over > 0; i++) {
             const src = candidates[i];
             textureCache.get(src).dispose();
@@ -726,14 +803,50 @@ export function createInfiniteCanvas(options) {
     function acquireMesh() {
         const mesh = pool.pop();
         if (mesh) return mesh;
-        return new THREE.Mesh(
-            geometry,
-            new THREE.MeshBasicMaterial({
-                transparent: true,
-                opacity: 0,
-                depthWrite: false
-            })
-        );
+
+        const material = new THREE.MeshBasicMaterial({
+            transparent: true,
+            opacity: 0,
+            depthWrite: false
+        });
+        /* fwidth is core on WebGL2 and this is ignored there; it only matters
+           if the renderer ever falls back. */
+        material.extensions = { derivatives: true };
+        material.onBeforeCompile = function (shader) {
+            shader.uniforms.uReveal = { value: 0 };
+            shader.uniforms.uMaskFit = { value: new THREE.Vector2(1, 1) };
+            shader.fragmentShader = shader.fragmentShader
+                .replace("#include <alphamap_pars_fragment>",
+                         "#include <alphamap_pars_fragment>\n" +
+                         "uniform float uReveal;\nuniform vec2 uMaskFit;")
+                .replace("#include <alphamap_fragment>", MASK_FRAGMENT);
+            material.userData.shader = shader;
+        };
+
+        return new THREE.Mesh(geometry, material);
+    }
+
+    /* Sizes the mask square so the butterfly lands on the plane at its own
+       proportions, as large as it can be without any of it running off an
+       edge. The photo keeps the plane, so what gives is coverage: a wide moth
+       on an upright photo simply leaves the top and bottom of it uncovered. */
+    function updateMask(mesh, reveal) {
+        mesh.userData.reveal = reveal;
+
+        const shader = mesh.material.userData.shader;
+        if (!shader) return;
+        shader.uniforms.uReveal.value = reveal;
+
+        const fit = shader.uniforms.uMaskFit.value;
+        const mask = mesh.material.alphaMap ? maskFor(mesh) : null;
+        if (!mask) {
+            fit.set(1, 1);
+            return;
+        }
+
+        const aspect = mesh.userData.aspect || 1;
+        const side = Math.min(aspect / mask.w, 1 / mask.h);
+        fit.set(aspect / side, 1 / side);
     }
 
     function releaseMesh(mesh) {
@@ -748,7 +861,41 @@ export function createInfiniteCanvas(options) {
         mesh.userData.aspect = 1;
         mesh.userData.lean = 0;
         mesh.rotation.z = 0;
+        updateMask(mesh, 0);
         pool.push(mesh);
+    }
+
+    let masks = [];
+
+    function maskFor(mesh) {
+        const i = mesh.userData.mask;
+        return (i == null || !masks.length) ? null : masks[i % masks.length];
+    }
+
+    /* Masked only on the free field. Every filter and every arrangement is a
+       composition someone else laid out — a silhouette cutting across a row is
+       just damage there — and selectEnabled already marks that difference, so
+       the mask rides the same flag that decides whether a photo can be opened
+       at all. Each of those switches rebuilds its planes behind the dip it
+       already plays, so the mask arriving or leaving is never seen. */
+    function applyMask(mesh) {
+        const mask = selectEnabled ? maskFor(mesh) : null;
+        const next = mask ? mask.texture : null;
+        if (mesh.material.alphaMap === next) return;
+        const toggled = Boolean(mesh.material.alphaMap) !== Boolean(next);
+        mesh.material.alphaMap = next;
+        if (toggled) mesh.material.needsUpdate = true;
+    }
+
+    function maskHit(mesh, uv) {
+        if (!uv || mesh.userData.reveal > 0.5) return true;
+        const mask = maskFor(mesh);
+        if (!mask) return true;
+
+        const s = mask.size;
+        const x = Math.min(s - 1, Math.max(0, Math.floor(uv.x * s)));
+        const y = Math.min(s - 1, Math.max(0, Math.floor(uv.y * s)));
+        return mask.pick[y * s + x] > 128;
     }
 
     const chunks = new Map();
@@ -794,6 +941,7 @@ export function createInfiniteCanvas(options) {
             const pileAngle = rng() * Math.PI * 2;
             const pileRadius = Math.sqrt(rng());
             const pileSpin = (rng() * 2 - 1) * CHURN_TUMBLE;
+            const maskIndex = Math.floor(rng() * BUTTERFLY_COUNT);
 
             const mesh = acquireMesh();
             mesh.position.set(px, py, pz);
@@ -814,9 +962,12 @@ export function createInfiniteCanvas(options) {
             mesh.userData.hasTexture = false;
             mesh.userData.requested = false;
             mesh.userData.opacity = 0;
+            mesh.userData.mask = maskIndex;
             mesh.material.opacity = 0;
             mesh.material.map = null;
             mesh.visible = false;
+            updateMask(mesh, 0);
+            applyMask(mesh);
 
             scene.add(mesh);
             meshes.push(mesh);
@@ -893,9 +1044,12 @@ export function createInfiniteCanvas(options) {
             mesh.userData.hasTexture = false;
             mesh.userData.requested = false;
             mesh.userData.opacity = 0;
+            mesh.userData.mask = Math.floor(rng() * BUTTERFLY_COUNT);
             mesh.material.opacity = 0;
             mesh.material.map = null;
             mesh.visible = false;
+            updateMask(mesh, 0);
+            applyMask(mesh);
 
             scene.add(mesh);
             reelItems.push(mesh);
@@ -959,7 +1113,10 @@ export function createInfiniteCanvas(options) {
         });
 
         const hits = raycaster.intersectObjects(pickList, false);
-        return hits.length ? hits[0].object : null;
+        for (let i = 0; i < hits.length; i++) {
+            if (maskHit(hits[i].object, hits[i].uv)) return hits[i].object;
+        }
+        return null;
     }
 
     function handleClick(e) {
@@ -1570,6 +1727,8 @@ export function createInfiniteCanvas(options) {
         mesh.position.set(px, py, pz);
         mesh.scale.set(sh * mesh.userData.aspect, sh, 1);
 
+        updateMask(mesh, mesh === focusMesh ? focus.amount : 0);
+
         const reveal = mesh.userData.hasTexture ? target : 0;
         mesh.userData.opacity += (reveal - mesh.userData.opacity) * 0.18;
         /* The pinch is applied after the smoothing lerp, never through it: the
@@ -1589,6 +1748,13 @@ export function createInfiniteCanvas(options) {
         mesh.material.opacity = alpha;
         mesh.visible = alpha > INVIS_THRESHOLD;
     }
+
+    loadButterflyMasks().then(function (list) {
+        if (!list.length || !running) return;
+        masks = list;
+        chunks.forEach(function (meshes) { meshes.forEach(applyMask); });
+        for (let i = 0; i < reelItems.length; i++) applyMask(reelItems[i]);
+    });
 
     frame();
 
@@ -1856,6 +2022,8 @@ export function createInfiniteCanvas(options) {
             textureCache.forEach(function (t) { if (t) t.dispose(); });
             textureCache.clear();
             textureLastUsed.clear();
+            masks.forEach(function (m) { m.texture.dispose(); });
+            masks = [];
             geometry.dispose();
             pool.forEach(function (m) { m.material.dispose(); });
             renderer.dispose();
