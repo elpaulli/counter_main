@@ -334,8 +334,8 @@ const PICK_MIN_OPACITY = 0.3;
    only a floor for the other end of that: blown up large the slope goes to
    nothing, and a hair of softness there hides the fact that a field this size
    cannot hold a truly sharp corner. */
-const MASK_SOFT_MIN = 0.004;
-const MASK_OPEN = -0.08;
+const MASK_SOFT_MIN = 0.02;
+const MASK_OPEN = -0.12;
 
 /* How fast the field keeps falling away past the edge of the mask texture. The
    plane can reach a little beyond that edge when its shape and the butterfly's

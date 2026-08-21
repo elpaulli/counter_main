@@ -12,7 +12,7 @@ export const BUTTERFLY_COUNT = 25;
    two seconds of it across the set and stalled a frame badly. A field is not
    an image: it interpolates, so a shape stays smooth at far lower resolution
    than a photograph would. */
-const MASK_SIZE = 128;
+const MASK_SIZE = 512;
 
 /* A rasterisation that came back blank — an SVG carrying its own fill, or one
    drawn with strokes rather than filled paths — has no silhouette to measure.
