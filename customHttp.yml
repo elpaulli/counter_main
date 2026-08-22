@@ -1,0 +1,23 @@
+customHeaders:
+  # Amplify's default is `public, must-revalidate, max-age=30` on every file.
+  # For a site whose payload is ~16MB of photographs and a set of webfonts,
+  # that means a visitor returning half a minute later revalidates all of it —
+  # a couple of hundred conditional requests before anything can draw.
+  #
+  # Only the things that are safe to pin are pinned. Anything the deploy
+  # rewrites in place under the same name — the markup, the scripts, the
+  # stylesheets, the manifest that lists the photographs — is deliberately left
+  # on the short default, so a release is picked up straight away.
+
+  # Photographs and the butterfly art. New work arrives under a new filename,
+  # so a month costs nothing and saves re-fetching the whole library.
+  - pattern: '/images/**'
+    headers:
+      - key: 'Cache-Control'
+        value: 'public, max-age=2592000'
+
+  # Webfonts are versioned by name and never edited.
+  - pattern: '/fonts/**'
+    headers:
+      - key: 'Cache-Control'
+        value: 'public, max-age=31536000, immutable'

@@ -449,6 +449,32 @@
     }
 }
 
+/* ---------- LOADING COUNTER INSIDE THE O ---------- */
+/* The count sits in the O's opening, and that opening is a fixed fraction of
+   the wordmark — so on a narrow screen it shrinks with the logo while the
+   digits do not, and three of them plus the percent sign run out over the C
+   and the U. Both sides of that are corrected: the wordmark reclaims the
+   overlay's side padding, which only it needs, and the digits come down to
+   suit what is left. The copy underneath keeps its own measure — the padding
+   is untouched, only what the wordmark's own box is allowed to span. */
+@media (max-width: 760px) {
+    .definition-phonetic {
+        width: calc(100% + 48px);
+    }
+
+    /* Tied to the viewport, because the opening it has to sit in is: the
+       wordmark spans the screen, so the O does too, and a fixed size would
+       come good on one handset and foul the letters on a narrower one. */
+    .loading-counter {
+        font-size: clamp(9px, 2.6vw, 12px);
+        letter-spacing: 0.04em;
+    }
+
+    .loading-counter::after {
+        margin-left: 0.1em;
+    }
+}
+
 /* ---------- COUNTER PILLARS ON NARROW SCREENS ---------- */
 @media (max-width: 760px) {
     /* Three columns of running copy stop being readable well before the frame

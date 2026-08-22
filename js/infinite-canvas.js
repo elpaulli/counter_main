@@ -347,7 +347,7 @@ const MASK_FRAGMENT = [
     "#ifdef USE_ALPHAMAP",
     "	vec2 maskUv = ( vAlphaMapUv - 0.5 ) * uMaskFit + 0.5;",
     "	vec2 maskOver = max( abs( maskUv - 0.5 ) - 0.5, 0.0 );",
-    "	float maskDist = texture2D( alphaMap, clamp( maskUv, 0.0, 1.0 ) ).g;",
+    "	float maskDist = texture2D( alphaMap, clamp( maskUv, 0.0, 1.0 ) ).r;",
     "	maskDist = max( maskDist - length( maskOver ) * " + MASK_OUTSIDE.toFixed(3) + ", 0.0 );",
     "	float maskEdge = mix( 0.5, " + MASK_OPEN.toFixed(3) + ", uReveal );",
     "	float maskAA = max( fwidth( maskDist ), " + MASK_SOFT_MIN.toFixed(4) + " );",
@@ -1333,6 +1333,8 @@ export function createInfiniteCanvas(options) {
        use slack, never take a slot from something on screen. */
     let warmList = null;
     let warmIndex = 0;
+    let warmActive = 0;
+    const warmed = new Set();
 
     function warmAll(list) {
         warmList = list.slice();
@@ -1340,23 +1342,35 @@ export function createInfiniteCanvas(options) {
         pumpWarm();
     }
 
+    /* Warming used to run each file all the way through the loader, which built
+       a texture and uploaded it — and since a warmed image is on no plane and
+       in no pool, the cache trim freed it again almost immediately. The whole
+       library was being decoded and pushed to the GPU to be thrown away.
+
+       Only the fetch is worth keeping. It leaves the file in the browser's own
+       cache, which is the part that makes a later filter switch quick, and
+       costs no texture memory at all. The real load, when a plane finally asks
+       for it, then comes off disk. */
     function pumpWarm() {
         if (!warmList) return;
         /* Anything in flight or already queued outranks warming, no exceptions. */
         if (activeLoads > 0 || loadQueue.length) return;
 
-        let added = 0;
-        while (warmIndex < warmList.length && added < WARM_BATCH) {
+        while (warmActive < WARM_BATCH && warmIndex < warmList.length) {
             const src = warmList[warmIndex++];
-            if (textureCache.has(src) || prefetched.has(src)) continue;
-            prefetched.add(src);
-            loadQueue.push({ mesh: null, src: src });
-            added++;
+            if (warmed.has(src) || textureCache.has(src)) continue;
+            warmed.add(src);
+            warmActive++;
+            fetch(src)
+                .then(function (res) { return res.blob(); })
+                .catch(function () { return null; })
+                .then(function () {
+                    warmActive--;
+                    pumpWarm();
+                });
         }
 
-        if (added) {
-            pumpQueue();
-        } else if (warmIndex >= warmList.length) {
+        if (warmActive === 0 && warmIndex >= warmList.length) {
             warmList = null;
             if (typeof options.onWarmComplete === "function") {
                 options.onWarmComplete(textureCache.size, badSources.size);
