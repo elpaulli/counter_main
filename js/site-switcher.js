@@ -104,8 +104,11 @@
             bg: '#0a0a0a',
             fg: '#fff5ca',
             accent: '#246996',
-            bgImage: SITE_ASSETS + 'okeyo-bg.jpg',
-            bgVeil: 0.3,
+
+            /* No photograph behind it — oKEYo's own ground is the flat colour,
+               with the wordmark run out to the width of the frame and the
+               definition laid over the top of it. */
+            logoFill: 0.95,
 
             fontSans: '"Quablo", "Helvetica Neue", Helvetica, Arial, sans-serif',
             fontDisplay: '"Roma", "Helvetica Neue", Helvetica, Arial, sans-serif',
@@ -817,6 +820,13 @@
         injLogo.setAttribute('aria-label', site.title);
         gsap.set(injLogo, { clearProps: 'transform', scale: site.logoScale || 1 });
 
+        /* The stand-in wears the page's own wordmark class, which caps it at a
+           height suited to a mark sitting above a paragraph. A property asking
+           for a share of the frame is taller than that cap, and leaving it on
+           would hold the box at the old height and let the art hang out of the
+           bottom of it — off centre by exactly the difference. */
+        injLogo.style.maxHeight = site.logoFill ? 'none' : '';
+
         const svg = site.logo ? svgReady[site.logo] : null;
         if (svg) {
             const node = svg.cloneNode(true);
@@ -825,8 +835,16 @@
 
             const vb = (node.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
             if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) {
-                const h = Math.min(LOGO_MAX_H, vb[3]);
-                injLogo.dataset.restWidth = String(h * vb[2] / vb[3]);
+                /* Most of the properties set their wordmark by height, so the
+                   marks sit at the same weight next to each other. A property
+                   whose mark *is* the page — oKEYo's runs the width of the
+                   frame — asks for a share of the viewport instead, and the
+                   stage's own padding still caps it. */
+                const width = site.logoFill
+                    ? window.innerWidth * site.logoFill
+                    : Math.min(LOGO_MAX_H, vb[3]) * vb[2] / vb[3];
+
+                injLogo.dataset.restWidth = String(Math.round(width));
                 node.style.width = 'min(100%, ' + injLogo.dataset.restWidth + 'px)';
                 node.style.height = 'auto';
             }

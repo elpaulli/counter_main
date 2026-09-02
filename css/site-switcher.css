@@ -679,14 +679,31 @@ body[data-switcher-site="counter"] .definition-inner {
 }
 
 
+/* oKEYo reads its definition across the wordmark rather than under it, so the
+   copy comes out of the column and is centred over the stage instead. Taken
+   out of flow, the mark is the only thing left to centre, which is what lets
+   it sit dead centre at full width.
+
+   inset + a width + margin:auto rather than a translate: the swap animates y
+   on this element, and a transform here would be overwritten by it.
+
+   Difference, because both are the same cream — over the letters the copy
+   drops to dark and stays legible, over the ground it stays light, which is
+   how the property sets it on its own pages. */
 body[data-switcher-site="okeyo"] .switcher-text {
-    margin-top: 36px;
+    position: absolute;
+    inset: 0;
+    width: min(62vw, 820px);
+    height: -moz-max-content;
+    height: max-content;
+    margin: auto;
     font-family: var(--font-sans);
     font-size: clamp(12px, 1.2vw, 16px);
     font-weight: 400;
     letter-spacing: 0.08em;
     line-height: 1.6;
     max-width: 800px;
+    mix-blend-mode: difference;
 }
 
 body[data-switcher-site="okeyo"] .switcher-label {
