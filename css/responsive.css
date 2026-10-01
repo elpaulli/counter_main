@@ -348,6 +348,30 @@
 }
 
 @media (max-width: 600px) {
+
+
+    .bottom-bar {
+        justify-content: flex-start;
+        padding-left: 12px;
+        box-sizing: border-box;
+    }
+
+    .canvas-menu {
+        width: calc(100vw - 80px);
+    }
+    .site-grid-cell.site-grid-bottom-left {
+        display: none;
+    }
+    .theme-switch {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        width: 24px;
+        height: 24px;
+        margin: 0;
+        z-index: 210;
+    }
+
     .gallery-img img {
         min-width: 180px;
     }

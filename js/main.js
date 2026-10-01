@@ -9,7 +9,6 @@
     const definitionText = document.querySelector(".definition-text:not(.tagline_text)");
     const loadingCounter = document.getElementById("loading-counter");
     const logoO = document.querySelector(".logo-o");
-    const logoOStars = document.querySelector(".logo-o-stars");
     const brandMark = document.querySelector(".brand-mark");
     const siteGrid = document.getElementById("site-grid");
     const canvasMenu = document.getElementById("canvas-menu");
@@ -64,8 +63,7 @@
             .to(definitionPhonetic, { opacity: 1, y: 0, duration: 1.0, ease: "power3.out" })
             .to(definitionText, { opacity: 1, duration: 0.8, ease: "power2.out" }, "-=0.3")
             .call(placeLoadingCounterAtO, null, "-=0.2")
-            .to(logoOStars, { opacity: 0, duration: 0.35, ease: "power2.out" })
-            .to(loadingCounter, { opacity: 1, duration: 0.6, ease: "power2.out" }, "<")
+            .to(loadingCounter, { opacity: 1, duration: 0.6, ease: "power2.out" })
             .to(counterProxy, {
                 v: 93, duration: COUNT_RAMP_S, ease: "power1.out", onUpdate: paintCounter
             }, "-=0.2")
@@ -75,7 +73,6 @@
             const tl = gsap.timeline();
 
             tl.to(loadingCounter, { opacity: 0, duration: 0.4, ease: "power2.in" }, 0);
-            tl.to(logoOStars, { opacity: 1, duration: 0.4, ease: "power2.out" }, 0.15);
 
             tl.add(function () { document.body.classList.remove("intro"); }, 0);
 

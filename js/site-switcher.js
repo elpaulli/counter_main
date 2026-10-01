@@ -76,6 +76,7 @@
             badge: SITE_ASSETS + 'counter-dash.png',
             mark: '',
             logo: SITE_ASSETS + 'counter-logo.svg',
+            logoScale: 1.1,
             tagline: '',
             text: 'coun·ter /ˈkoun(t)ər/ — contrary to intuition or to common-sense expectation but often nevertheless true.',
 
