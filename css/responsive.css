@@ -140,6 +140,8 @@
         justify-content: flex-end;
         padding-bottom: 6px;
         text-align: center;
+        pointer-events: none;
+        z-index: 0;
     }
 
     .site-grid-bottom-left .grid-social-row,
