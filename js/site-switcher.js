@@ -44,7 +44,7 @@
         {
             id: 'spaghett',
             title: 'Spaghett',
-            url: 'https://spaghett.paullindesign.com/',
+            url: 'https://www.restaurantspaghett.com/',
             cta: 'Dai, si va da Spaghett!',
 
             badge: SITE_ASSETS + 'spaghett-hand.png',
@@ -93,8 +93,8 @@
         {
             id: 'okeyo',
             title: 'oKEYo',
-            url: 'https://okeyo.paullindesign.com/',
-            cta: 'Unlock oKEYo',
+            url: '',
+            cta: 'Coming Soon',
 
             badge: SITE_ASSETS + 'okeyo-mark.svg',
             mark: '',

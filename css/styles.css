@@ -893,6 +893,12 @@ body.partners-open .infinite-canvas {
     margin-right: auto;
 }
 
+.legal-p a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
 .legal-p {
     margin-top: 0;
     margin-bottom: clamp(14px, 2vh, 28px);
