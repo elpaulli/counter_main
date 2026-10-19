@@ -1,13 +1,3 @@
-/* ============================================
-   RESPONSIVE — ALL MEDIA QUERIES
-   ============================================ */
-
-
-/* ============================================
-   1. BASE LAYER RESPONSIVE
-   ============================================ */
-
-/* Wider reveal on desktop — the intro clip opens from a narrower band */
 @media (min-width: 1000px) {
     @keyframes helloSite {
         0% {
@@ -30,23 +20,32 @@
 }
 
 @media (max-width: 900px) {
-    /* ---------- SITE GRID ---------- */
     .site-grid-top-right {
         display: flex;
         margin-top: 1em;
     }
+
     .hide_on_mobile {
         display: none;
     }
+
     .site-grid-bottom-left {
         display: flex;
-        grid-column: 2/3;
-        grid-row: 1;
+        grid-column: 1 / -1;
+        grid-row: 3;
         align-items: center;
-        justify-content: flex-start;
+        justify-content: flex-end;
+        padding-bottom: 6px;
+        text-align: center;
+        pointer-events: none;
+        z-index: 0;
     }
 
-    /* Move address to bottom center, above CTAs */
+    .site-grid-bottom-left .grid-social-row,
+    .site-grid-bottom-left .grid-extra-links {
+        display: none;
+    }
+
     .site-grid-top-center {
         grid-column: 1 / -1;
         grid-row: 1;
@@ -54,16 +53,20 @@
         justify-content: flex-end;
         padding-bottom: 80px;
     }
+
     .site-grid-bottom-right {
         padding-bottom: 60px;
     }
-    /* Hide center CTAs by default on mobile */
+
     .site-grid-center:not(".past_presnt") {
         display: none;
     }
 
-    /* ---------- BOTTOM BAR ---------- */
-    /* Full width on mobile: menu left, reserve right, no angled clip */
+    .site-grid-center.past_presnt {
+        grid-column: 1;
+        grid-column-end: 4;
+    }
+
     .bottom-bar {
         right: 0;
         left: 0;
@@ -111,52 +114,18 @@
         justify-content: center;
     }
 
-    /* ---------- HERO ---------- */
-    /* Full height minus the bottom bar */
     .section-hero {
         height: calc(100vh - var(--bar-h-mobile));
     }
 
-    /* Push hero overlay content above the bottom bar */
     .hero-definition-overlay {
         padding-bottom: var(--bar-h-mobile);
-    }
-}
-
-
-/* ============================================
-   2. SITE LAYER RESPONSIVE — COUNTER- CLT
-   ============================================ */
-
-@media (max-width: 900px) {
-    /* ---------- FOOTER -> MENU ----------
-       The footer's links move into the canvas menu at this width (see the More
-       group), so the grid cell keeps only the copyright, centred along the very
-       bottom of the frame. */
-    .site-grid-bottom-left {
-        grid-column: 1 / -1;
-        grid-row: 3;
-        align-items: center;
-        justify-content: flex-end;
-        padding-bottom: 6px;
-        text-align: center;
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    .site-grid-bottom-left .grid-social-row,
-    .site-grid-bottom-left .grid-extra-links {
-        display: none;
     }
 
     .canvas-menu-more {
         display: block;
     }
 
-    /* The panel grows upward from a bar at the bottom of the frame, and with
-       More open its content can be taller than the room above it — which put
-       the filters off the top of the screen where nothing could reach them.
-       Cap it against the viewport and let the overflow scroll. */
     .canvas-menu-panel-inner {
         max-height: calc(100vh - 110px);
         overflow-y: auto;
@@ -168,9 +137,6 @@
         display: none;
     }
 
-    /* ---------- LETTER NOTE ON TOUCH ---------- */
-    /* No cursor to track, and landscape has no headroom above the logo, so the
-       note is pinned under the letters by JS and reads as a centred caption */
     .letter-note {
         width: min(90vw, 560px);
         max-width: none;
@@ -186,7 +152,6 @@
         display: inline;
     }
 
-    /* ---------- MENU OVERLAY ---------- */
     .menu-overlay-inner {
         display: flex;
         flex-direction: column;
@@ -198,7 +163,6 @@
         padding-top: 50px;
     }
 
-    /* Bottom nav moves to top on mobile */
     .menu-cell-bottom-nav {
         order: -1;
         padding-top: 0;
@@ -237,7 +201,6 @@
         flex-grow: 1;
     }
 
-    /* Partners move to bottom on mobile */
     .menu-cell-top-left {
         order: 3;
         flex-direction: column;
@@ -251,7 +214,6 @@
         width: 100%;
     }
 
-    /* Sub-tabs horizontal on mobile */
     .panel-subtab-layout {
         display: flex;
         flex-direction: column;
@@ -290,7 +252,6 @@
         width: 100%;
     }
 
-    /* Hide reserve links text on mobile */
     .menu-reserve-links {
         display: none;
     }
@@ -303,29 +264,20 @@
         overflow-y: visible;
     }
 
-    /* ---------- SWITCHERS ---------- */
-    /* Tighter so both switchers fit across a narrow top row */
     .bg-switcher,
     .view-switcher {
         font-size: 9px;
         gap: 7px;
     }
 
-    /* ---------- LOGO CONCEPTS ---------- */
     .logo-concepts .hero-definition-overlay {
         z-index: 1001;
-    }
-
-    .site-grid-center.past_presnt {
-        grid-column: 1;
-        grid-column-end: 4;
     }
 
     .past_present .logo-slider-controls {
         width: 100%;
     }
 
-    /* ---------- GALLERY ---------- */
     .gallery-img {
         height: calc(100vh - var(--bar-h-mobile));
     }
@@ -333,65 +285,7 @@
     .gallery-img img {
         min-width: 220px;
     }
-}
 
-/* Phone-sized and upright: prompt the user to turn the device. Taken out of
-   flow so the logo stack stays centred on the page rather than being pushed down. */
-@media (max-width: 600px) and (orientation: portrait) {
-    .rotate-prompt {
-        display: block;
-        position: absolute;
-        bottom: calc(100% + 28px);
-        left: 50%;
-        transform: translateX(-50%);
-        width: min(70%, 240px);
-        pointer-events: none;
-    }
-}
-
-@media (max-width: 600px) {
-
-
-    .bottom-bar {
-        justify-content: flex-start;
-        padding-left: 12px;
-        box-sizing: border-box;
-    }
-
-    .canvas-menu {
-        width: calc(100vw - 80px);
-    }
-    .site-grid-cell.site-grid-bottom-left {
-        display: none;
-    }
-    .theme-switch {
-        position: fixed;
-        right: 24px;
-        bottom: 24px;
-        width: 24px;
-        height: 24px;
-        margin: 0;
-        z-index: 210;
-    }
-
-    .gallery-img img {
-        min-width: 180px;
-    }
-
-    .menu-link {
-        font-size: clamp(14px, 4vw, 18px);
-    }
-}
-
-/* ---------- FILTER PANELS ON NARROW SCREENS ---------- */
-/* The desktop layout puts the copy in whichever half of the frame the strip
-   left empty. On a phone there is no comfortable half in either direction, so
-   every panel — whatever side it was assigned — collapses to the same full
-   width band near the top, and the strip is simply read behind it. */
-@media (max-width: 900px) {
-    /* Every placement collapses to the same band across the top, because every
-       strip is forced along the bottom at this width — there is no "opposite
-       side" left to place copy in, only above or below. */
     .filter-panel,
     .filter-panel[data-side="left"],
     .filter-panel[data-side="right"],
@@ -408,6 +302,21 @@
         margin: 0;
     }
 
+    .filter-panel[data-side="corner"] {
+        inset: auto;
+        top: 10vh;
+        left: 6vw;
+        right: 6vw;
+        width: auto;
+    }
+
+    .filter-panel-wide[data-side="top"],
+    .filter-panel-wide[data-side="bottom"] {
+        width: auto;
+        left: 6vw;
+        right: 6vw;
+    }
+
     .filter-panel-title {
         margin-bottom: 12px;
     }
@@ -420,77 +329,64 @@
     .filter-panel-body + .filter-panel-body {
         margin-top: 0.9em;
     }
+
+    .filter-panel-tabs {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .filter-panel-tablist {
+        display: none;
+    }
+
+    .filter-panel-tabselect {
+        display: block;
+    }
+
+    .filter-panel-tabpanel .filter-panel-body {
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .filter-panel-corner {
+        position: static;
+        width: auto;
+    }
+
+    .filter-panel-corner-br {
+        text-align: left;
+        margin-top: 18px;
+    }
+
+    .site-switcher .switcher-note {
+        top: calc(var(--grid-pad, 10px) - 3px);
+        bottom: auto;
+        left: 96px;
+        right: 96px;
+        width: auto;
+        height: 40px;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .site-switcher .switcher-nav {
+        top: calc(var(--grid-pad, 10px) + 52px);
+    }
 }
 
-/* Landscape phones have no vertical room for a block of copy over the strip;
-   the title alone carries it. */
 @media (max-width: 900px) and (orientation: landscape) {
     .filter-panel-body {
         display: none;
     }
 }
 
-/* ---------- PARTNERS PANEL ON NARROW SCREENS ---------- */
-/* Three logos side by side stop being legible well before the frame runs out,
-   so the row becomes a column and the panel takes the width it needs. */
-@media (max-width: 700px) {
-    .partners-panel {
-        width: min(88vw, 420px);
-    }
-
-    .partners-grid {
-        grid-template-columns: 1fr;
-        gap: 22px;
-    }
-
-    .partners-item img {
-        max-height: 58px;
-    }
-
-    .partners-title {
-        margin-bottom: 22px;
-    }
-}
-
-/* ---------- LEGAL ON NARROW SCREENS ---------- */
-@media (max-width: 700px) {
-    .legal-doc {
-        padding: 12vh 0 18vh;
-    }
-
-    .legal-head {
-        margin-bottom: 8vh;
-    }
-
-    /* The measure is set in ch, so it already tracks the font size — this only
-       stops it outrunning the viewport on the narrowest screens. */
-    .legal-p,
-    .legal-list {
-        max-width: min(22ch, 84vw);
-    }
-
-    .legal-close {
-        top: 14px;
-        right: 14px;
-    }
-}
-
-/* ---------- LOADING COUNTER INSIDE THE O ---------- */
-/* The count sits in the O's opening, and that opening is a fixed fraction of
-   the wordmark — so on a narrow screen it shrinks with the logo while the
-   digits do not, and three of them plus the percent sign run out over the C
-   and the U. Both sides of that are corrected: the wordmark reclaims the
-   overlay's side padding, which only it needs, and the digits come down to
-   suit what is left. The copy underneath keeps its own measure — the padding
-   is untouched, only what the wordmark's own box is allowed to span. */
 @media (max-width: 760px) {
     .definition-phonetic {
         width: calc(100% + 48px);
     }
 
-    /* Tied to the viewport, because the opening it has to sit in is: the
-       wordmark spans the screen, so the O does too, and a fixed size would
-       come good on one handset and foul the letters on a narrower one. */
     .loading-counter {
         font-size: clamp(9px, 2.6vw, 12px);
         letter-spacing: 0.04em;
@@ -499,26 +395,13 @@
     .loading-counter::after {
         margin-left: 0.1em;
     }
-}
 
-/* ---------- COUNTER PILLARS ON NARROW SCREENS ---------- */
-@media (max-width: 760px) {
-    /* Three columns of running copy stop being readable well before the frame
-       runs out — they stack instead. */
     .pillars-grid {
         grid-template-columns: 1fr;
         gap: 26px;
         width: min(86vw, 460px);
     }
 
-    /* No hover on touch, so the label would never open — it stays collapsed and
-       the icon alone is the target. */
-    /* Set on the tab, not the icon: the tab's horizontal offset is derived
-       from it, so changing it here keeps the icon centred. */
-    /* Sits under the definition line instead of pinned to the left edge —
-       `top` comes from JS, which measures that line because it moves with
-       the logo's height. Horizontally: pinning the tab's right edge half an
-       icon past centre leaves the icon itself dead centre. */
     .pillars-tab {
         --pillars-icon: 38px;
         top: auto;
@@ -527,9 +410,6 @@
         transform: none;
     }
 
-    /* Undo the desktop reorder: centred under the definition line, the icon
-       goes back to trailing the label so it lands dead on the centre point
-       the tab is pinned to. */
     .pillars-tab-icon {
         order: 0;
     }
@@ -543,10 +423,6 @@
         padding-right: 4px;
     }
 
-    /* Opening hands the close over to the panel: the tab goes, and the control
-       that shuts it is inside the revealed block, so it moves with the copy.
-       visibility rather than opacity — GSAP owns the tab's opacity inline and
-       would win. */
     body.pillars-open .pillars-tab {
         visibility: hidden;
         pointer-events: none;
@@ -556,13 +432,7 @@
         display: block;
         pointer-events: auto;
     }
-}
 
-/* ---------- SPLIT PANEL ON NARROW SCREENS ---------- */
-/* The centre strip and two bands of copy don't all fit in a phone's height, so
-   the bands take the width instead and the type comes down with them. */
-@media (max-width: 760px) {
-    /* The two bands stack instead of pinning to opposite ends of the frame. */
     .filter-panel[data-side="split"] {
         display: block;
         padding: 0;
@@ -582,60 +452,85 @@
     }
 }
 
-/* ---------- VIEW PANELS ON NARROW SCREENS ---------- */
-@media (max-width: 900px) {
-    /* The corner a diagonal leaves is small to begin with and shrinks with the
-       frame, so the copy takes the width instead. */
-    .filter-panel[data-side="corner"] {
-        left: 6vw;
-        right: 6vw;
-        top: 10vh;
-        width: auto;
+@media (max-width: 700px) {
+    .partners-panel {
+        width: min(88vw, 420px);
     }
 
-    /* Tabs beside their answer need a desktop's width. On a phone the column
-       of questions becomes a dropdown above the answer — six long questions
-       wrapped across a narrow screen would take more room than the answer. */
-    .filter-panel-tabs {
+    .partners-grid {
         grid-template-columns: 1fr;
-        gap: 14px;
+        gap: 22px;
     }
 
-    .filter-panel-tablist {
+    .partners-item img {
+        max-height: 58px;
+    }
+
+    .partners-title {
+        margin-bottom: 22px;
+    }
+
+    .legal-doc {
+        padding: 12vh 0 18vh;
+    }
+
+    .legal-head {
+        margin-bottom: 8vh;
+    }
+
+    .legal-p,
+    .legal-list {
+        max-width: min(22ch, 84vw);
+    }
+
+    .legal-close {
+        top: 14px;
+        right: 14px;
+    }
+}
+
+@media (max-width: 600px) {
+    .bottom-bar {
+        justify-content: flex-start;
+        padding-left: 12px;
+        box-sizing: border-box;
+    }
+
+    .canvas-menu {
+        width: calc(100vw - 80px);
+    }
+
+    .site-grid-cell.site-grid-bottom-left {
         display: none;
     }
 
-    .filter-panel-tabselect {
+    .theme-switch {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        width: 24px;
+        height: 24px;
+        margin: 0;
+        z-index: 210;
+    }
+
+    .gallery-img img {
+        min-width: 180px;
+    }
+
+    .menu-link {
+        font-size: clamp(14px, 4vw, 18px);
+    }
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+    .rotate-prompt {
         display: block;
-    }
-
-    .filter-panel-tabpanel .filter-panel-body {
-        font-size: 13px;
-        line-height: 1.6;
-    }
-
-    /* The two diagonal corners collapse to one column at the top. */
-    .filter-panel-corner {
-        position: static;
-        width: auto;
-    }
-
-    .filter-panel[data-side="corner"] {
-        inset: auto;
-        top: 10vh;
-        left: 6vw;
-        right: 6vw;
-    }
-
-    .filter-panel-corner-br {
-        text-align: left;
-        margin-top: 18px;
-    }
-
-    .filter-panel-wide[data-side="top"],
-    .filter-panel-wide[data-side="bottom"] {
-        width: auto;
-        left: 6vw;
-        right: 6vw;
+        position: absolute;
+        bottom: calc(100% + 28px);
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(70%, 240px);
+        pointer-events: none;
     }
 }
