@@ -630,6 +630,18 @@ export function createInfiniteCanvas(options) {
         texture.needsUpdate = true;
     }
 
+    function releaseSource(texture) {
+        const img = texture.image;
+        if (!img) return;
+        const w = img.width;
+        const h = img.height;
+        if (img instanceof HTMLCanvasElement) {
+            img.width = 0;
+            img.height = 0;
+        }
+        texture.image = { width: w, height: h };
+    }
+
     function pumpQueue() {
         while (activeLoads < MAX_CONCURRENT_LOADS && loadQueue.length) {
             let bestIdx = -1;
@@ -675,7 +687,10 @@ export function createInfiniteCanvas(options) {
                     texture.colorSpace = THREE.SRGBColorSpace;
                     texture.generateMipmaps = true;
                     texture.minFilter = THREE.LinearMipmapLinearFilter;
-                    try { renderer.initTexture(texture); } catch (e) {}
+                    try {
+                        renderer.initTexture(texture);
+                        releaseSource(texture);
+                    } catch (e) {}
                     textureCache.set(job.src, texture);
                     /* Stamped here too, not just in applyTexture — a warmed
                        texture arrives with no mesh yet, and without this it
@@ -727,6 +742,7 @@ export function createInfiniteCanvas(options) {
     function collectActiveSources() {
         const active = new Set();
         for (let i = 0; i < activePool.length; i++) active.add(activePool[i].src);
+        for (let i = 0; i < incomingPool.length; i++) active.add(incomingPool[i].src);
         chunks.forEach(function (meshes) {
             for (let i = 0; i < meshes.length; i++) {
                 if (meshes[i].userData.src) active.add(meshes[i].userData.src);
@@ -900,6 +916,10 @@ export function createInfiniteCanvas(options) {
 
     const chunks = new Map();
     let activePool = images.slice();
+    /* The pool a filter switch is fetching ahead of its swap. Protected from the
+       trim until it becomes activePool, or the prefetch would be disposed as it
+       lands and loaded again after the swap. */
+    let incomingPool = [];
     let layoutSalt = 0;
 
     function chunkKey(cx, cy, cz) {
@@ -1546,6 +1566,25 @@ export function createInfiniteCanvas(options) {
     el.addEventListener("pointerleave", endDrag);
     el.addEventListener("wheel", onWheel, { passive: false });
 
+    function resetPlaneTexture(mesh) {
+        mesh.material.map = null;
+        mesh.userData.hasTexture = false;
+        mesh.userData.requested = false;
+    }
+
+    function onContextRestored() {
+        textureCache.forEach(function (texture, src) {
+            if (texture) {
+                textureCache.delete(src);
+                textureLastUsed.delete(src);
+            }
+        });
+        loadQueue.length = 0;
+        chunks.forEach(function (meshes) { meshes.forEach(resetPlaneTexture); });
+        reelItems.forEach(resetPlaneTexture);
+    }
+    el.addEventListener("webglcontextrestored", onContextRestored);
+
     function onResize() {
         /* Crossing the breakpoint can change which way a live strip runs. */
         applyReelSide();
@@ -1784,6 +1823,7 @@ export function createInfiniteCanvas(options) {
             /* Start the download now, while the outgoing images still have the
                whole gather and hold to play out — that head start is most of
                what the spread needs to come back full. */
+            incomingPool = nextImages.slice();
             prefetchSources(nextImages);
 
             const o = opts || {};
@@ -1838,6 +1878,7 @@ export function createInfiniteCanvas(options) {
                 swapped = true;
 
                 activePool = nextImages.slice();
+                incomingPool = [];
                 /* New seed => the images scatter into a new arrangement rather
                    than dropping back into the outgoing set's slots. */
                 layoutSalt = (layoutSalt + 1) >>> 0;
@@ -2031,6 +2072,7 @@ export function createInfiniteCanvas(options) {
             el.removeEventListener("pointercancel", endDrag);
             el.removeEventListener("pointerleave", endDrag);
             el.removeEventListener("wheel", onWheel);
+            el.removeEventListener("webglcontextrestored", onContextRestored);
             clearChunks();
             clearReel();
             textureCache.forEach(function (t) { if (t) t.dispose(); });
