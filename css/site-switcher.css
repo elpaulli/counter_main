@@ -36,16 +36,10 @@
 
 
 :root {
-    /* The nav. --switcher-item-h is the pitch — the gap between one diamond's
-       centre and the next — and the rail between them is drawn from it, so
-       the two cannot drift. --switcher-icon is the ring the active and
-       hovered marks wear; --switcher-core is the filled diamond inside it. */
     --switcher-item-h: 56px;
     --switcher-icon: 24px;
     --switcher-core: 12px;
     --switcher-core-active: 9px;
-
-    /* Where the nav sits. Left of the screen, on the vertical centre. */
     --switcher-nav-left: calc(var(--grid-pad, 10px) + 26px);
     --switcher-nav-top: 50%;
     --switcher-cta-bottom: calc(var(--grid-pad, 10px) + 46px);
@@ -55,11 +49,6 @@
     --switcher-badge-axis: 185%;
 
     --switcher-note-top: calc(var(--grid-pad, 10px) + 5px);
-
-    /* The previewed property's ground has to cover the host page whole —
-       canvas, sky, texture and all — while still passing under the definition
-       (10001) that stands on it. Every one of these builds keeps its own
-       chrome below 10000, so one number clears all of them. */
     --switcher-backdrop-z: 10000;
 }
 
@@ -679,17 +668,6 @@ body[data-switcher-site="counter"] .definition-inner {
 }
 
 
-/* oKEYo reads its definition across the wordmark rather than under it, so the
-   copy comes out of the column and is centred over the stage instead. Taken
-   out of flow, the mark is the only thing left to centre, which is what lets
-   it sit dead centre at full width.
-
-   inset + a width + margin:auto rather than a translate: the swap animates y
-   on this element, and a transform here would be overwritten by it.
-
-   Difference, because both are the same cream — over the letters the copy
-   drops to dark and stays legible, over the ground it stays light, which is
-   how the property sets it on its own pages. */
 body[data-switcher-site="okeyo"] .switcher-text {
     position: absolute;
     inset: 0;

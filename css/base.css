@@ -1,50 +1,22 @@
-/* ============================================
-   BASE — REUSABLE FOUNDATION
-   ============================================
-   Shared across sites in this series. Holds design tokens, reset,
-   font utilities, sections, hero shell and the full-screen site grid.
-
-   Site-specific work belongs in styles.css:
-     - @font-face declarations (the font files themselves)
-     - token overrides (colours, families, metrics)
-     - anything unique to that site (gallery, menu overlay, etc.)
-
-   Companion file: responsive.css (all media queries)
-   ============================================ */
-
-/* ---------- DESIGN TOKENS ---------- */
-/* Defaults only. Each site overrides what it needs in styles.css. */
 :root {
-    /* Palette — dark by default */
     --bg:    #0a0a0a;
     --fg:    #ffffff;
     --fg-70: rgba(255, 255, 255, 0.70);
     --fg-30: rgba(255, 255, 255, 0.30);
     --fg-20: rgba(255, 255, 255, 0.20);
     --accentColor: #246996;
-
-    /* Font families — the site supplies the @font-face for the first name */
-    --font-sans:    "Helvetica Neue", Helvetica, Arial, sans-serif;
+   --font-sans:    "Helvetica Neue", Helvetica, Arial, sans-serif;
     --font-display: Georgia, serif;
     --font-text:    Georgia, serif;
-
-    /* Layout metrics */
     --grid-pad:       10px;
     --bar-h:          56px;
     --bar-h-mobile:   60px;
     --section-max:    900px;
     --section-pad-y:  120px;
     --section-pad-x:  40px;
-
-    /* Motion */
     --theme-fade: 0.6s ease;
 }
 
-/* Dark theme — site loads light by default (see styles.css); this class
-   switches to the dark palette. Palette values themselves live in
-   styles.css, since each site tunes its own dark/light colours. */
-
-/* ---------- RESET & BASE ---------- */
 *,
 *::before,
 *::after {
@@ -88,7 +60,6 @@ img {
     height: auto;
 }
 
-/* ---------- FONT UTILITY CLASSES ---------- */
 .font-sans {
     font-family: var(--font-sans);
 }
@@ -106,7 +77,6 @@ img {
     letter-spacing: 0.02em;
 }
 
-/* ---------- LOADING SCREEN ---------- */
 .loader {
     position: fixed;
     top: 0;
@@ -125,7 +95,6 @@ img {
     margin-top: 24px;
 }
 
-/* ---------- BRAND MARK (fixed top-left) ---------- */
 .brand-mark {
     position: fixed;
     top: 0px;
@@ -142,8 +111,6 @@ img {
     width: 40px;
     height: auto;
     display: block;
-    /* Source art is black, so it needs inverting only once the dark theme's
-       background goes dark underneath it */
     filter: invert(0);
     transition: filter var(--theme-fade);
 }
@@ -152,7 +119,6 @@ img {
     filter: invert(1);
 }
 
-/* ---------- MAIN CONTENT REVEAL ---------- */
 .main-content {
     opacity: 0;
     -webkit-clip-path: inset(50% 50% 50% 50%);
@@ -183,7 +149,6 @@ img {
     }
 }
 
-/* ---------- SECTIONS ---------- */
 .section {
     position: relative;
 }
@@ -194,7 +159,6 @@ img {
     padding: var(--section-pad-y) var(--section-pad-x);
 }
 
-/* ---------- HERO ---------- */
 .section-hero {
     height: 100vh;
     overflow: hidden;
@@ -203,7 +167,6 @@ img {
     position: relative;
 }
 
-/* Definition overlay — fixed above loader during intro, stays above the hero after */
 .hero-definition-overlay {
     position: fixed;
     top: 0;
@@ -220,7 +183,6 @@ img {
     pointer-events: none;
 }
 
-/* ---------- FIXED BOTTOM BAR ---------- */
 .bottom-bar {
     position: fixed;
     bottom: 0;
@@ -263,12 +225,10 @@ img {
     border-color: var(--fg);
 }
 
-/* Mobile reserve button — hidden on desktop, laid out in responsive.css */
 .mobile-reserve-btn {
     display: none;
 }
 
-/* ---------- FULL-SCREEN SITE GRID ---------- */
 .site-grid {
     position: fixed;
     top: 0;
