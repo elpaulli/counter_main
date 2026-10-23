@@ -106,9 +106,6 @@
             fg: '#fff5ca',
             accent: '#246996',
 
-            /* No photograph behind it — oKEYo's own ground is the flat colour,
-               with the wordmark run out to the width of the frame and the
-               definition laid over the top of it. */
             logoFill: 0.95,
 
             fontSans: '"Quablo", "Helvetica Neue", Helvetica, Arial, sans-serif',
@@ -176,7 +173,6 @@
     const SWIPE_THRESHOLD = 34;
 
     const SWAP_SETTLE_MS = 140;
-
 
     if (!window.gsap) {
         console.warn('[site-switcher] GSAP not found — switcher not started.');
@@ -289,7 +285,6 @@
         Object.keys(FONT_PROPS).forEach((key) => s.removeProperty(FONT_PROPS[key]));
     }
 
-
     const svgPending = Object.create(null);
     const svgReady = Object.create(null);
 
@@ -324,7 +319,6 @@
             facesReady(site);
         });
     }
-
 
     let root = null;
     let rows = [];
@@ -491,7 +485,6 @@
         else injText.parentNode.insertBefore(injTagline, injText);
     }
 
-
     function buildChamber() {
         chamber = document.createElement('span');
         chamber.className = 'switcher-chamber';
@@ -657,7 +650,6 @@
         });
     }
 
-
     const hostParts = () => [hostMark, hostTagline, hostText].filter(Boolean);
     const injParts = () => [injMark, injTagline, injText].filter(Boolean);
 
@@ -701,7 +693,6 @@
         }
     }
 
-
     const LETTER_SHAPES = 'path, polygon, polyline, circle, ellipse, rect, line';
 
     function drawablesIn(node) {
@@ -735,7 +726,7 @@
                 svg.__letters = ordered;
                 return ordered;
             }
-        } catch (e) { /* not laid out — fall through */ }
+        } catch (e) {  }
 
         return units;
     }
@@ -821,11 +812,6 @@
         injLogo.setAttribute('aria-label', site.title);
         gsap.set(injLogo, { clearProps: 'transform', scale: site.logoScale || 1 });
 
-        /* The stand-in wears the page's own wordmark class, which caps it at a
-           height suited to a mark sitting above a paragraph. A property asking
-           for a share of the frame is taller than that cap, and leaving it on
-           would hold the box at the old height and let the art hang out of the
-           bottom of it — off centre by exactly the difference. */
         injLogo.style.maxHeight = site.logoFill ? 'none' : '';
 
         const svg = site.logo ? svgReady[site.logo] : null;
@@ -836,11 +822,7 @@
 
             const vb = (node.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
             if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) {
-                /* Most of the properties set their wordmark by height, so the
-                   marks sit at the same weight next to each other. A property
-                   whose mark *is* the page — oKEYo's runs the width of the
-                   frame — asks for a share of the viewport instead, and the
-                   stage's own padding still caps it. */
+
                 const width = site.logoFill
                     ? window.innerWidth * site.logoFill
                     : Math.min(LOGO_MAX_H, vb[3]) * vb[2] / vb[3];
@@ -873,7 +855,6 @@
         injLogo.textContent = site.title;
     }
 
-
     function sizeLogo(fromWidth, toWidth, done) {
         const node = injLogo && injLogo.firstElementChild;
         if (!node || !fromWidth || !toWidth || Math.abs(toWidth - fromWidth) < 2) {
@@ -897,7 +878,6 @@
 
     let pageLogoWidth = 0;
 
-
     let selected = currentIndex;
 
     function markActive() {
@@ -909,7 +889,6 @@
         });
         refreshTitles();
     }
-
 
     let hoveredRow = null;
 
@@ -1177,9 +1156,6 @@
         if (open || busy) return;
         if (BUSY_CLASSES.some((c) => document.body.classList.contains(c))) return;
 
-        /* Anything already holding the screen gets closed by its own control
-           first, so it unwinds the way it knows how rather than being hidden
-           mid-animation and left in a state it cannot get out of. */
         for (let i = 0; i < DISMISS_FIRST.length; i++) {
             const panel = DISMISS_FIRST[i];
             const control = document.querySelector(panel.click);
@@ -1225,7 +1201,6 @@
             sizeLogo(pageLogoWidth, parseFloat(injLogo.dataset.restWidth));
         }
 
-        /* It always opens on your own slide, so the ground starts down. */
         paintBackdrop(SITES[currentIndex]);
         paintFrame(SITES[currentIndex]);
         gsap.set(ground(), { autoAlpha: 0 });
@@ -1502,7 +1477,7 @@
             step(-1);
             focusActive();
         } else if (e.key === 'Enter' && e.target === cta) {
-            /* the button's own click handles it */
+
         }
     }
 
@@ -1592,7 +1567,6 @@
         });
         cta.addEventListener('click', travel);
     }
-
 
     trigger.classList.add('site-switcher-trigger');
     trigger.setAttribute('role', 'button');

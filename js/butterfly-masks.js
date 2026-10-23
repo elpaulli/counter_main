@@ -6,35 +6,14 @@ import * as THREE from "three";
 
 export const BUTTERFLY_COUNT = 25;
 
-/* Distance-field resolution per mask. Powers of two only — the fallback path
-   still uploads four channels, and mipmapping a non-power-of-two texture is
-   not valid there.
-
-   Cost is this figure squared, twice over, per mask. Measured across the set
-   of 25, once the transforms were broken up and the upload cut to a single
-   channel: 512 costs 877ms and 8.3MB, 256 costs 333ms and 2.1MB. A field is
-   not an image — it interpolates, so the edge it reconstructs holds up far
-   below the resolution a photograph would need, and the difference between
-   the two is a fraction of a pixel at the size these draw. Desktop can spend
-   it; a phone is the machine that has neither the memory nor the CPU. */
 const MASK_SIZE = window.matchMedia("(pointer: coarse)").matches ? 256 : 512;
 
-/* Columns (then rows) a distance transform gets through before handing the
-   thread back. Sized to keep any one turn near a couple of milliseconds. */
 const EDT_CHUNK = 32;
 
-/* A rasterisation that came back blank — an SVG carrying its own fill, or one
-   drawn with strokes rather than filled paths — has no silhouette to measure.
-   Its field would normalise to NaN, land in the texture as zero, and read as
-   "outside everywhere", which shows up as planes that are simply invisible
-   with nothing logged. Below this many pixels either way, the mask is dropped
-   instead. */
 const MIN_SOLID = 64;
-/* Low-res copy kept in JS so a click can be tested against the shape itself. */
+
 const PICK_SIZE = 64;
-/* Empty margin left around the silhouette, as a fraction of the texture. This
-   is the runway the reveal grows along before it runs out of field, so it buys
-   smoothness at the cost of resolution on the shape itself. */
+
 const MASK_PAD = 0.12;
 
 const MASK_DIR = "images/butterfly/";
@@ -60,8 +39,6 @@ function silhouette(text) {
             return;
         }
 
-        /* Drawn at its own proportions inside the square, so the distance field
-           is measured in a space the shape is not distorted in. */
         const aspect = viewBoxAspect(svg);
         const avail = MASK_SIZE * (1 - MASK_PAD * 2);
         const w = aspect >= 1 ? avail : avail * aspect;
@@ -173,11 +150,6 @@ async function field(pixels) {
     const toSolid = await edt(solid, MASK_SIZE);
     const toEmpty = await edt(empty, MASK_SIZE);
 
-    /* One scale for both sides of the edge. Normalising the inside and the
-       outside separately puts a kink in the field's slope at exactly the
-       boundary, and the shader reads that slope to size its own antialiasing —
-       so it would measure one width just inside the silhouette and another
-       just outside it. */
     let scale = 0;
     for (let i = 0; i < n; i++) {
         const d = solid[i] ? toEmpty[i] : toSolid[i];
@@ -200,10 +172,6 @@ async function field(pixels) {
     return out;
 }
 
-/* A field is one number per texel, so on WebGL2 it is uploaded as one channel
-   rather than four — the same shape for a quarter of the memory, on the GPU
-   and in the heap copy the texture holds on to. The shader reads .r, which is
-   also what the four-channel fallback writes to. */
 const SINGLE_CHANNEL = (function () {
     try {
         return Boolean(document.createElement("canvas").getContext("webgl2"));
@@ -249,10 +217,6 @@ function pickGrid(data) {
     return grid;
 }
 
-/* A message to ourselves, rather than setTimeout: nested timeouts get clamped
-   to about four milliseconds, and at several hundred yields across the set that
-   clamp alone would cost more than the work being broken up. Only ever one
-   yield is outstanding — the build awaits each in turn. */
 const yieldNow = (function () {
     if (typeof MessageChannel !== "function") {
         return function () {
@@ -274,16 +238,8 @@ const yieldNow = (function () {
     };
 })();
 
-/* Fetching and decoding run together — that part is the browser's to schedule
-   and mostly off the main thread. Building the fields does not: it is a long
-   synchronous burn per mask, so they are taken one at a time with the thread
-   handed back in between, which trades a slightly later finish for an intro
-   that never freezes. */
 export async function loadButterflyMasks() {
-    /* Only the markup is fetched together — it is a few kilobytes each and the
-       requests should overlap. Rasterising is held back to one at a time: the
-       pixel buffers are a megabyte apiece, and drawing all of them up front
-       just to queue them for the field would spike the heap for no gain. */
+
     const texts = await Promise.all(
         Array.from({ length: BUTTERFLY_COUNT }, function (unused, i) {
             return fetch(maskUrl(i))

@@ -17,9 +17,8 @@
 
     const CANVAS_FALLBACK_MS = 18000;
 
- 
     function playLoadingAnimation() {
-      
+
         document.body.classList.add("intro");
         gsap.set([brandMark, siteGrid, canvasMenu, ".pillars-tab"], { opacity: 0 });
         gsap.set([definitionText, loadingCounter], { opacity: 0 });
@@ -38,7 +37,6 @@
             if (loadingCounter) loadingCounter.textContent = Math.round(counterProxy.v);
         }
         paintCounter();
-
 
         let reached93 = false;
         let loadDone = false;
@@ -109,7 +107,6 @@
         }, { once: true });
     }
 
-   
     var PHONETIC_DIMMED = 0.05;
 
     var filterPanels = document.querySelectorAll(".filter-panel");
@@ -121,8 +118,6 @@
         return null;
     }
 
-    /* Whether a filter is on, so anything that restores the definition line
-       (the partners panel closing) puts it back to the right value. */
     var filterActive = false;
 
     document.addEventListener("counter:filter-change", function (e) {
@@ -141,18 +136,11 @@
         }
     });
 
-    /* Tab groups inside a copy panel. Generic — any panel can use one by
-       adding .filter-panel-tabs with .filter-panel-tab buttons and matching
-       .filter-panel-tabpanel blocks. */
     document.querySelectorAll(".filter-panel-tabs").forEach(function (group) {
         var tabs = Array.prototype.slice.call(group.querySelectorAll(".filter-panel-tab"));
         var panes = Array.prototype.slice.call(group.querySelectorAll(".filter-panel-tabpanel"));
         if (!tabs.length) return;
 
-        /* Narrow screens get a dropdown instead of a column of tabs. It is
-           built from the tabs rather than authored alongside them, so the two
-           can never drift apart — and a real <select> means the platform's own
-           picker on a phone, which no styled div gets close to. */
         var picker = document.createElement("select");
         picker.className = "filter-panel-tabselect";
         picker.setAttribute("aria-label", group.querySelector(".filter-panel-tablist")
@@ -170,8 +158,7 @@
             tabs.forEach(function (tab, i) {
                 var on = i === index;
                 tab.setAttribute("aria-selected", String(on));
-                /* One stop in the tab order for the whole group; the arrows move
-                   between them from there. */
+
                 tab.tabIndex = on ? 0 : -1;
             });
             panes.forEach(function (pane, i) {
@@ -211,14 +198,11 @@
         else if (side === "right") from.x = 22;
         else if (side === "top") from.y = -22;
         else if (side === "bottom") from.y = 22;
-        /* "split" has a band at each end of the frame — a single direction
-           would carry one of them the wrong way, so it just fades. */
 
         gsap.fromTo(panel, from,
             { autoAlpha: 1, x: 0, y: 0, duration: 1.0, ease: "power3.out" });
     });
 
-    
     var FOCUS_CHROME = [brandMark, siteGrid, canvasMenu, ".pillars-tab", ".hero-definition-overlay"];
 
     document.addEventListener("counter:photo-focus", function (e) {
@@ -231,10 +215,6 @@
         });
     });
 
-
-    /* Partners: the 501(c)(3) panel takes the definition line's place and the
-       canvas drops back to almost nothing behind it. Closes on a click
-       anywhere outside itself, on Escape, or on any canvas-menu selection. */
     var PARTNERS_CANVAS_DIM = 0.05;
 
     var partnersLink = document.getElementById("partners-display-link");
@@ -243,12 +223,6 @@
     var infiniteCanvas = document.getElementById("infinite-canvas");
     var partnersOpen = false;
 
-    /* Both the footer link and the icon in the canvas menu drive the same
-       panel, so they are handled as one control throughout — including the
-       outside-click test, which must not treat either as "outside". */
-    /* Anything carrying data-partners-toggle drives the panel — the footer
-       link, the icon in the menu, and the entry in the mobile More list. Opting
-       in by attribute means a new one needs no change here. */
     var partnersToggles = Array.prototype.slice.call(
         document.querySelectorAll("[data-partners-toggle]"));
 
@@ -267,8 +241,6 @@
             el.setAttribute("aria-expanded", String(open));
         });
 
-        /* Pin to wherever the definition line currently sits — it moves with
-           the logo's height, so this can't be a fixed number. */
         if (open) {
             partnersPanel.style.top =
                 Math.round(definitionText.getBoundingClientRect().top) + "px";
@@ -299,7 +271,7 @@
     }
 
     partnersToggles.forEach(function (el) {
-        /* partnersLink has its own handler further down. */
+
         if (el === partnersLink) return;
         el.addEventListener("click", function (e) {
             e.preventDefault();
@@ -311,8 +283,7 @@
     if (partnersLink && partnersPanel) {
         partnersLink.addEventListener("click", function (e) {
             e.preventDefault();
-            /* Stop it reaching the document handler below, which would read the
-               opening click as the click that closes it. */
+
             e.stopPropagation();
             setPartners(!partnersOpen);
         });
@@ -324,12 +295,6 @@
             });
         }
 
-        /* Anywhere outside closes it; inside is left alone so the partner links
-           still work. Capture phase, because several controls (the canvas menu
-           toggle among them) stop propagation in the bubble phase and would
-           otherwise leave the panel stranded open. The link itself is excluded
-           so its own handler can do the toggling — closing here first would let
-           that handler immediately reopen it. */
         document.addEventListener("click", function (e) {
             if (!partnersOpen) return;
             if (partnersPanel.contains(e.target) || isPartnersToggle(e.target)) return;
@@ -340,7 +305,6 @@
             if (e.key === "Escape") setPartners(false);
         });
 
-        /* Choosing anything from the canvas menu closes it too. */
         document.addEventListener("counter:filter-change", function () {
             setPartners(false);
         });
@@ -352,9 +316,6 @@
         });
     }
 
-    /* Counter Pillars. The tab hover-expands on its own (CSS); clicking it puts
-       the three columns up, dims the canvas to almost nothing and takes the
-       wordmark with it, so the copy has the frame to itself. */
     var PILLARS_CANVAS_DIM = 0.05;
 
     var pillarsTab = document.getElementById("pillars-tab");
@@ -381,9 +342,6 @@
             gsap.to(pillarsPanel, { autoAlpha: 0, y: 10, duration: 0.3, ease: "power2.in" });
         }
 
-        /* The hero mark goes entirely — at 0.05 the canvas is already a ghost,
-           and leaving the wordmark over the columns would be the only thing
-           competing with them. */
         if (heroOverlay) {
             gsap.to(heroOverlay, {
                 opacity: open ? 0 : 1, duration: 0.5, ease: "power2.out", overwrite: "auto"
@@ -395,17 +353,12 @@
                 opacity: open ? PILLARS_CANVAS_DIM : 1,
                 duration: 0.6,
                 ease: "power2.out",
-                /* partners and legal drive this same property — going straight
-                   from one to another must not leave two tweens fighting. */
+
                 overwrite: "auto"
             });
         }
     }
 
-    /* Mobile only: the tab sits under the definition line, which moves with
-       the logo's height — so its position is measured rather than guessed,
-       the same way the partners panel finds that line. On desktop the tab is
-       pinned to the left edge by CSS, so any inline `top` is cleared instead. */
     var PILLARS_MOBILE_QUERY = "(max-width: 760px)";
 
     function placePillarsTab() {
@@ -429,7 +382,7 @@
 
         placePillarsTab();
         window.addEventListener("resize", placePillarsTab);
-        /* The definition only reaches its final place once the intro has run. */
+
         document.addEventListener("counter:arm-interaction", placePillarsTab, { once: true });
 
         pillarsTab.addEventListener("click", function (e) {
@@ -438,13 +391,9 @@
             setPillars(!pillarsOpen);
         });
 
-        /* Anywhere else closes it. Capture phase for the same reason as the
-           partners panel: several controls stop propagation while bubbling and
-           would otherwise strand this open. The tab is excluded so its own
-           handler does the toggling. */
         document.addEventListener("click", function (e) {
             if (!pillarsOpen || pillarsTab.contains(e.target)) return;
-            /* Don't close out from under someone selecting a pillar's copy. */
+
             var selection = window.getSelection();
             if (pillarsGrid && pillarsGrid.contains(e.target) &&
                 selection && selection.type === "Range" && String(selection).trim()) return;
@@ -455,14 +404,9 @@
             if (e.key === "Escape" && pillarsOpen) setPillars(false);
         });
 
-        /* Choosing a filter is a different intent — put the canvas back. */
         document.addEventListener("counter:filter-change", function (e) {
             setPillars(false);
 
-            /* Mobile only: the tab sits pinned directly under the definition
-               line there, so it must fade with it or it's left stranded over
-               the filter copy. On desktop the tab is pinned to the left edge
-               instead — clear of the filter panel regardless — so it stays put. */
             if (window.matchMedia(PILLARS_MOBILE_QUERY).matches) {
                 var filtered = Boolean(e.detail && e.detail.filterId);
                 pillarsTab.style.pointerEvents = filtered ? "none" : "";
@@ -473,15 +417,11 @@
         });
     }
 
-    /* Legal documents (terms / privacy), modelled on the Codrops WebGL-text
-       layout: real DOM text, a mask reveal as each block enters view, and a
-       chromatic shift driven by scroll velocity. Scrolling is confined to
-       .legal-scroll, and the canvas sits dimmed behind it. */
     var LEGAL_CANVAS_DIM = 0.5;
-    /* Peak RGB split, in px, and peak lean, in degrees, at full scroll speed. */
+
     var LEGAL_MAX_SHIFT = 7;
     var LEGAL_MAX_SKEW = 1.4;
-    /* Scroll delta (px/frame) that counts as full speed. */
+
     var LEGAL_VEL_FULL = 55;
 
     var legalWrapper = document.getElementById("legal-wrapper");
@@ -497,9 +437,6 @@
         return legalWrapper.querySelector('.legal-doc[data-legal="' + kind + '"]');
     }
 
-    /* Velocity is measured rather than listened for: a scroll event fires at
-       whatever rate the input device dictates, but the shift has to build and
-       release smoothly, so it's eased toward the reading every frame instead. */
     function legalFrame() {
         if (!legalOpen) return;
         legalRaf = requestAnimationFrame(legalFrame);
@@ -529,8 +466,6 @@
             var doc = legalDocFor(kind);
             if (!doc) { legalOpen = false; return; }
 
-            /* Only the requested document is shown; the other keeps its text in
-               the DOM but out of the accessibility tree and the layout. */
             legalWrapper.querySelectorAll(".legal-doc").forEach(function (el) {
                 el.hidden = el !== doc;
             });
@@ -541,10 +476,6 @@
             legalWrapper.style.setProperty("--legal-shift", "0px");
             legalWrapper.style.setProperty("--legal-skew", "0deg");
 
-            /* Watch the block that *contains* each clipped span, never the span
-               itself: its hidden state is a clip-path that reduces it to zero
-               area, and an observer measuring that would never see it arrive.
-               Replayed on every open, not just the first. */
             var blocks = [];
             doc.querySelectorAll(".legal-reveal").forEach(function (el) {
                 if (el.parentElement) blocks.push(el.parentElement);
@@ -556,7 +487,7 @@
                 entries.forEach(function (en) {
                     if (!en.isIntersecting) return;
                     en.target.classList.add("legal-in");
-                    /* One-way: a block that has arrived stays arrived. */
+
                     legalObserver.unobserve(en.target);
                 });
             }, { root: legalScroll, rootMargin: "0px 0px -10% 0px", threshold: 0.04 });
@@ -573,9 +504,7 @@
         }
 
         if (infiniteCanvas) {
-            /* overwrite:auto — the partners panel drives this same property, and
-               opening one straight from the other must not leave two tweens
-               fighting over it. */
+
             gsap.to(infiniteCanvas, {
                 opacity: opening ? LEGAL_CANVAS_DIM : 1,
                 duration: 0.6,
@@ -598,11 +527,6 @@
             legalCloseBtn.addEventListener("click", function () { setLegal(null); });
         }
 
-        /* Anywhere in the panel closes it — the whole surface is the dismiss
-           target, the corner + is just the visible affordance. The one thing
-           that must not trigger it is finishing a drag-select: a click fires at
-           the end of that too, and closing the document out from under someone
-           who was highlighting a passage would be maddening. */
         legalWrapper.addEventListener("click", function () {
             var selection = window.getSelection();
             if (selection && selection.type === "Range" && String(selection).trim()) return;
@@ -614,13 +538,9 @@
         });
     }
 
-    /* Badge that rides the cursor once the reveal lands: "Drag", then "Scroll",
-       then gone. Runs once, and only where there's a cursor to attach it to. */
     var HINT_DRAG_S = 1.8;
     var HINT_SCROLL_S = 1.8;
-    /* Sits below-right of the pointer rather than under it — centred on the
-       cursor, the arrow bubble and the word both end up behind the arrow the
-       user is actually looking at. */
+
     var HINT_OFFSET_X = 22;
     var HINT_OFFSET_Y = 18;
     var HINT_EDGE = 10;
@@ -637,10 +557,6 @@
         var followX = null;
         var followY = null;
 
-        /* Remembers where the cursor is, starts the badge once the reveal is
-           done, and drives the follow after that. Goes inert for good once the
-           badge has left, so it isn't retargeting tweens for the rest of the
-           session. */
         window.addEventListener("mousemove", function (e) {
             if (hintDone) return;
             cursor.x = e.clientX;
@@ -653,9 +569,6 @@
             }
         });
 
-        /* Badge's top-left goes just past the pointer, then gets pulled back
-           inside the viewport so it can't hang off an edge as the cursor
-           reaches one. */
         function hintX(cx) {
             return Math.max(HINT_EDGE, Math.min(cx + HINT_OFFSET_X,
                 window.innerWidth - hint.offsetWidth - HINT_EDGE));
@@ -673,20 +586,15 @@
 
         document.addEventListener("counter:arm-interaction", function () {
             hintArmed = true;
-            /* Nowhere to put it if the pointer never moved — the listener
-               above starts it on the first move instead. */
+
             if (cursor.known) startHint();
         }, { once: true });
 
         function startHint() {
             if (followX || hintDone) return;
 
-            /* No xPercent/yPercent: x/y are the badge's top-left corner, which
-               is what the offset above is measured from. */
             gsap.set(hint, { x: hintX(cursor.x), y: hintY(cursor.y) });
 
-            /* quickTo retargets one tween per axis instead of spawning one per
-               mousemove; the duration is what gives the badge its trailing lag. */
             followX = gsap.quickTo(hint, "x", { duration: 0.4, ease: "power3" });
             followY = gsap.quickTo(hint, "y", { duration: 0.4, ease: "power3" });
 
@@ -699,20 +607,14 @@
                     { scale: 0, opacity: 0 },
                     { scale: 1, opacity: 1, duration: 0.4,
                       ease: "back.out(2.5)", stagger: 0.05 }, "-=0.25")
-                /* "Drag" is all four arrows; "Scroll" is only up and down, so
-                   the side pair retract as the word changes. Their width and
-                   margin go with them, not just their opacity — left in the
-                   layout they'd hold open a gap either side of the pill. */
+
                 .to(hintSides, {
                     scale: 0, opacity: 0, width: 0, marginLeft: 0, marginRight: 0,
                     duration: 0.38, ease: "power2.inOut"
                 }, "+=" + HINT_DRAG_S)
                 .to(hintLabel, { opacity: 0, y: -7, duration: 0.22, ease: "power2.in" }, "<")
                 .call(function () { hintLabel.textContent = "Scroll"; })
-                /* immediateRender:false is load-bearing. A fromTo renders its
-                   "from" state the moment the timeline is built, so without it
-                   this y:9 lands on the pill straight away and the whole "Drag"
-                   state sits 9px below its own arrow row. */
+
                 .fromTo(hintLabel,
                     { opacity: 0, y: 9 },
                     { opacity: 1, y: 0, duration: 0.3, ease: "power2.out",
@@ -724,9 +626,6 @@
         }
     }
 
-    /* The mobile-only More group in the canvas menu. Same open/close shape as
-       the footer's expand toggle, but driving a CSS grid track rather than an
-       animated height, so it opens to the list's real size. */
     var moreGroup = document.getElementById("canvas-menu-more");
     var moreToggle = document.getElementById("canvas-menu-more-toggle");
 

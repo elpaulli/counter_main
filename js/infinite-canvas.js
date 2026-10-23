@@ -1,262 +1,98 @@
 /* ============================================
    COUNTER- CLT — INFINITE CANVAS
-   ============================================
-   A seamless, pan-anywhere image space built on Three.js, after Edoardo
-   Lunardi's "Infinite Canvas" (github.com/edoardolunardi/infinite-canvas).
-
-   Space is a true 3D grid of chunks (cx, cy, cz). Planes are scattered through
-   all three axes — including depth — so scrolling flies the camera *through*
-   the images along Z rather than panning a flat wall. Only a small
-   neighbourhood of chunks around the camera is alive at once, and each chunk's
-   contents are derived from a hash of its coordinates, so a chunk culled on one
-   side and rebuilt later returns identical. That determinism is what makes the
-   space read as one continuous world.
-
-   Controls:
-     - drag           -> pan X / Y
-     - wheel / scroll -> zoom through the images along Z
    ============================================ */
 
 import * as THREE from "three";
 import { loadButterflyMasks, BUTTERFLY_COUNT } from "./butterfly-masks.js";
 
-/* ---------- world tuning ---------- */
 const CHUNK_SIZE = 90;
-/* Chunk neighbourhood kept alive around the camera, per axis. The camera lives
-   INSIDE this cloud, so the lateral axes need enough width to reach past the
-   frustum edges at the far visible depth — otherwise the field reads as a
-   cluster floating in the middle of the screen instead of surrounding you. */
+
 const RENDER_X = 2;
 const RENDER_Y = 2;
 const RENDER_Z = 2;
 const ITEMS_PER_CHUNK = 5;
 
-/* Planes are placed on a stratified sub-grid inside each chunk rather than at
-   fully-random points: the chunk is split into GRID_X*GRID_Y*GRID_Z cells, and
-   each item claims a distinct cell and jitters only within it. That guarantees
-   a minimum separation between planes, so the field reads as spaced-out layers
-   instead of a random pile-up. Cells (18) comfortably exceed ITEMS_PER_CHUNK,
-   so there's slack for the shuffle to spread things around. */
 const GRID_X = 3;
 const GRID_Y = 3;
 const GRID_Z = 2;
-/* Fraction of a cell an item may wander from its cell centre (0 = dead centre,
-   1 = anywhere in the cell). Kept below 1 so items never reach a cell edge and
-   collide with a neighbour. */
+
 const CELL_JITTER = 0.55;
 
-/* Plane sizes are kept small relative to the chunk so the field reads as many
-   spread-out images (lots of negative space) rather than a few big ones packed
-   together — see the reference "Infinite Canvas" demo. */
 const PLANE_MIN = 14;
 const PLANE_MAX = 25;
 
-/* Resting camera depth — where the fly-through reveal settles. Small enough
-   that images sit all around the camera at rest ("dropped into the scene"). */
 const INITIAL_CAMERA_Z = 40;
 const CAMERA_FOV = 60;
 
-/* Depth fade: planes are solid within START of the camera plane, gone by END.
-   A deep END keeps several z-layers alive at once, and it's that stack of
-   layers — not any single wall — that fills the frustum edge to edge.
-   Squared on apply, so they ease rather than pop as you pass through them. */
 const DEPTH_FADE_START = 80;
 const DEPTH_FADE_END = 250;
 
-/* Near fade: planes dissolve as they approach the camera, so nothing ever gets
-   close enough to fill the screen. This is what keeps the settled scene tidy —
-   the biggest solid plane sits at NEAR_FADE_FULL, whose apparent size is well
-   under a screen height — and it doubles as the "fly through" dissolve: as you
-   scroll forward an image grows, then melts away just before you reach it
-   instead of blowing up across the whole viewport.
-   NEAR_FADE_CUT (fully gone) < NEAR_FADE_FULL (fully solid) < DEPTH_FADE_START. */
 const NEAR_FADE_CUT = 20;
 const NEAR_FADE_FULL = 55;
 
-/* Reveal (two beats, driven from main.js): the whole pool preloads behind the
-   black loader curtain. When it's in, the curtain collapses and fadeIn() brings
-   the images up (REVEAL_FADE) — then zoom() flies the camera forward through
-   exactly two chunks (REVEAL_ZOOM) over REVEAL_DURATION, after which the overlay
-   flips to its difference blend. */
 const REVEAL_FADE = 0.8;
 const REVEAL_DURATION = 1.6;
 const REVEAL_ZOOM = 2 * CHUNK_SIZE;
 
-/* ---------- filter transition (gather -> hold -> swap -> spread) ----------
-   Switching filters never blanks the field. Every plane streams to one anchor —
-   a different corner of the frame per menu item — shrinking as it goes but
-   staying visible, so the field visibly *gathers* into a small cluster there.
-   The cluster then sits and holds long enough to read as a deliberate beat.
-   Only after that does it pinch out and back in — a fast dip confined to that
-   one small corner, which is all the cover the pool swap needs — before the new
-   images spread back out of it into a freshly re-seeded layout. */
-
-/* The gather in, and the spread back out. The spread runs longer so the
-   outbound half reads as the payoff rather than a rewind. Both ease in *and*
-   out: accelerating all the way into the corner is what made this snap. */
 const COLLECT_IN = 1.5;
 const COLLECT_OUT = 1.5;
 
-/* Fraction of the move spent staggering planes against each other (each plane
-   gets a fixed random phase). 0 = every plane moves in lockstep. */
 const COLLECT_STAGGER = 0.45;
 
-/* Scale a plane keeps once gathered. Small enough that hundreds of them read as
-   one cluster of chips, big enough that they're still legible as photographs. */
 const COLLECT_SCALE = 0.12;
 
-/* The gathered cluster is a loose disc, not a single point: each plane keeps a
-   fixed offset within it. Without that every plane lands on the same pixel and
-   the "pile" is just a smudge. The radius is a fraction of the *smaller* half
-   extent of the frame rather than a world distance, so the cluster keeps its
-   proportions — and stays inside the frame — on a portrait phone as well as a
-   wide desktop. Depth spread stays in world units; it doesn't affect framing. */
 const PILE_SPREAD = 0.19;
-/* Kept shallow: a tile sitting nearer the camera than the anchor projects
-   *further* from centre than its offset suggests, which is what pushes the
-   cluster off the frame edge. */
+
 const PILE_DEPTH = 9;
 
-/* The beat at the corner. The cluster holds sharp, then *mixes* — it stirs,
-   blurs and dims — and the pool changes at the peak of that, resolving back
-   into a sharp cluster afterwards. Swapping behind a straight opacity dip read
-   as a cut no matter how short it was; the eye needs the images to look like
-   they're being shuffled for the change to disappear into the motion. */
 const PILE_HOLD_IN = 0.2;
 const CHURN_IN = 0.3;
 const CHURN_OUT = 0.3;
 const PILE_HOLD_OUT = 0.5;
 
-/* How far the mix turns the cluster (radians, at its centre), and how far each
-   tile rotates on its own axis as it goes round. */
 const CHURN_SWIRL = 1.5;
 const CHURN_TUMBLE = 0.55;
 
-/* Tiles at the centre of the cluster turn through CHURN_CORE times the swirl,
-   those at its rim through (CHURN_CORE - 1). Anything above 1 means the pile
-   shears through itself instead of turning as a rigid disc — that differential
-   is what reads as mixing rather than spinning. */
 const CHURN_CORE = 1.35;
 
-/* An arrangement change — a "view" — re-lays the images already in play rather
-   than swapping the pool. Nothing is being concealed, so it skips the gather,
-   the pile and the mix entirely: the field dissolves, the new alignment forms
-   in its place, and the strip glides the last of the way in along its own axis
-   so it reads as aligning rather than simply appearing. */
 const ARRANGE_OUT = 0.42;
 const ARRANGE_IN = 0.95;
-/* How far along its own axis the strip slides in, in world units. */
+
 const ARRANGE_SLIDE = 90;
 
-/* Ambient drift for a view's strip, in world units per second — roughly one
-   image every six seconds. Applied on top of whatever the viewer is doing, so
-   scrolling still works and the strip resumes drifting when they stop rather
-   than coasting to a halt. Filters do not get it: their reels are something you
-   look through, this is something you watch. */
 const REEL_AUTO_RATE = 9;
 
-/* Peak blur on the canvas, in CSS pixels. Individual tiles are only ~20-30px
-   across when gathered, so this is well past the point where they stop being
-   legible as separate images — which is the point. */
 const BLUR_MAX = 16;
 
-/* How far the cluster dims at the peak of the mix. Deliberately not 0: a
-   blackout, however brief, is exactly the cut this is meant to avoid. */
 const PINCH_FLOOR = 0.32;
 
-/* Where the anchor sits: this far in front of the camera (inside the solid band
-   between NEAR_FADE_FULL and DEPTH_FADE_START), and this far toward the frame
-   edge from centre. Pushed no further than PILE_SPREAD (plus a tile's own half
-   height) leaves room for — a cluster half off the edge doesn't read as a pile,
-   it reads as a bug. */
 const ANCHOR_DEPTH = 65;
 const ANCHOR_INSET = 0.6;
 
-/* The swap waits for the incoming pool to be this far loaded before the cluster
-   fades back in, but never longer than SWAP_MAX_WAIT_S — past that the
-   stragglers just arrive late rather than holding the transition hostage. */
 const SWAP_READY_FRACTION = 0.6;
 const SWAP_MAX_WAIT_S = 1.2;
 
-/* ---------- reel layout ----------
-   A filter marked layout:"reel" doesn't scatter back into the 3D field. Its
-   images instead fly out of the gathered cluster into one endless vertical
-   strip down the right of the frame: a single large image centred, the bottom
-   of the previous one showing above it and the top of the next below, scrolling
-   under the wheel. The strip rides a gently curved spine, so the column drifts
-   sideways as it travels rather than running dead straight.
-
-   The reel is its own small set of planes — one per image in the pool, in pool
-   order — rather than part of the chunk field, because "endless" here means a
-   finite list looping, not procedurally generated space. */
-
-/* The spine, as an SVG path in a 100x100 viewBox. y 0..100 runs the length of
-   the strip (SVG's y-down convention, so it can be authored in a vector tool
-   and pasted in); x is the strip's *deviation from its own centreline*, where
-   50 is dead straight. Only M and C commands are read.
-
-   Deviation rather than absolute position is what lets one path serve all four
-   strips: the per-axis `inset` below decides which edge it sits on, and this
-   only says how the strip wanders as it travels. Keep it monotonic in y — the
-   reel reads deviation off it as a function of distance along the strip. */
 const REEL_PATH = "M 46 0 C 56 28, 56 72, 46 100";
 
-
-/* How many points the spine is sampled into. It's a fixed table built once at
-   load, not per frame. */
 const REEL_SPINE_SAMPLES = 256;
 
-/* How tall the strip is, in viewport heights. Only the middle ~1 of that is on
-   screen; the rest is the run-up either side, so images are placed and dropped
-   well outside the frame and never pop into view. */
 const REEL_SPAN = 2.8;
 
-/* Per axis: the box each image is fitted inside (fractions of the viewport
-   measured along the strip and across it), and how far the strip's centreline
-   sits from the middle of the frame (fraction of the half extent across it).
-
-   Two sets because the axes aren't interchangeable — a vertical strip on a wide
-   screen has height to spend and width to spare, a horizontal one the reverse —
-   and because `cross` and `inset` together decide how far the images reach back
-   toward the middle. That matters: the copy panel occupies the opposite half,
-   and a wide box on a small inset puts the two on top of each other.
-
-   `gap` is the space between slots as a fraction of the along box — what lets
-   the neighbours' edges show, telling you the strip continues.
-
-   `snug` decides how slots are sized. Off, every slot is a full along-box wide,
-   which is right when the images are all roughly one shape. On, each image gets
-   a slot as wide as it actually renders — which this library needs on the
-   horizontal strips, being 61% portrait and 37% landscape: a fixed slot sized
-   for one shape leaves a hole around the other, and the hole was the whole
-   complaint. The vertical strips stay un-snug, unchanged. */
 const REEL_BOX_VERTICAL = {
     along: 0.62, cross: 0.40, inset: 0.46, gap: 0.19, snug: false
 };
 const REEL_BOX_HORIZONTAL = {
     along: 0.30, cross: 0.46, inset: 0.38, gap: 0.06, snug: true
 };
-/* side:"center" — horizontal, but running through the middle of the frame
-   rather than along an edge. Nothing shares that half, so the images take
-   noticeably more of it; the copy panel splits above and below instead of
-   sitting opposite. inset MUST stay 0, or it stops being the centre. */
-/* The extra size goes into `along`, not `cross`. Height is the scarce axis
-   here: the copy takes a band above and a band below, and past about cross 0.50
-   the strip eats the bottom band on a 700px-tall screen. Widening instead buys
-   the same "bigger" without touching that budget. */
+
 const REEL_BOX_CENTER = {
     along: 0.44, cross: 0.46, inset: 0, gap: 0.06, snug: true
 };
 
-/* A diagonal strip. Its images stay upright — only the line they travel is
-   turned — so this box is read against the frame's own width and height rather
-   than against the diagonal's longer reach. */
 const REEL_BOX_DIAGONAL = {
     along: 0.30, cross: 0.30, inset: 0, gap: 0.06, snug: true
 };
 
-/* Which box a strip uses. Keyed off the side rather than just the axis, since
-   "center" is horizontal but sized quite differently from an edge strip. */
 function reelBoxFor(side) {
     if (side === "center") return REEL_BOX_CENTER;
     if (side === "diagonal") return REEL_BOX_DIAGONAL;
@@ -264,83 +100,37 @@ function reelBoxFor(side) {
     return REEL_BOX_HORIZONTAL;
 }
 
-/* The strip's own frame: `a` is the direction it travels, `c` the direction it
-   is offset in. Written out per side rather than derived by rotating `a`,
-   because the vertical and horizontal conventions disagree about which way
-   perpendicular points and both predate the diagonal. Keeping them literal is
-   what lets a third axis be added without disturbing either. */
 const SQ = Math.SQRT1_2;
 function reelAxes(side) {
     if (side === "left" || side === "right") {
         return { ax: 0, ay: 1, cx: 1, cy: 0 };
     }
     if (side === "diagonal") {
-        /* Rising left-to-right, with the offset perpendicular to it. */
+
         return { ax: SQ, ay: SQ, cx: -SQ, cy: SQ };
     }
     return { ax: 1, ay: 0, cx: 0, cy: 1 };
 }
 
-/* Depth the strip sits at. Inside the solid band (NEAR_FADE_FULL ..
-   DEPTH_FADE_START) so the depth fade leaves it alone. */
 const REEL_DEPTH = 65;
 
-/* How much of the spine's tangent the images take on as tilt. 0 keeps every
-   image upright; 1 would rotate them fully onto the curve. A little sells the
-   path, a lot looks like a mistake. */
 const REEL_TILT = 0.4;
 
-/* Scroll feel is deliberately NOT its own model: the strip runs on the same
-   accumulator -> velocity -> decay the camera fly-through uses, with the same
-   constants (WHEEL_SPEED, DRAG_SPEED, MAX_VELOCITY, VELOCITY_LERP,
-   VELOCITY_DECAY, SCROLL_DECAY). Both move in world units, so they transfer
-   directly, and a flick of the wheel builds speed and coasts through the images
-   exactly as it does in the 3D field. Easing toward a target position instead
-   loses that — it decelerates into a stop rather than carrying. */
-
-/* ---------- focus (clicking a photo on the unfiltered canvas) ----------
-   Click a plane and it is selected — a plus appears over it. Click that same
-   plane again and it flies to the middle of the frame at as much of the screen
-   height as it can fill, while the rest of the world, chrome included, fades to
-   nothing. A click anywhere then puts it back where it was.
-
-   Unfiltered canvas only: a filter's layout is a composition of its own, and
-   lifting one image out of a reel or a themed scatter says nothing. */
 const FOCUS_IN = 0.75;
 const FOCUS_OUT = 0.55;
 
-/* Where the focused image sits, and how much of the frame it fills. Height is
-   the target; the width cap only stops a panorama running off the sides. */
 const FOCUS_DEPTH = 60;
 const FOCUS_FILL_H = 0.92;
 const FOCUS_FILL_W = 0.94;
 
-/* A press counts as a click, rather than the end of a drag, only if the pointer
-   barely moved and it was over quickly. */
 const CLICK_SLOP = 6;
 const CLICK_MS = 450;
 
-/* Don't let a click land on a plane that is barely on screen. */
 const PICK_MIN_OPACITY = 0.3;
 
-/* Butterfly clip masks. Every plane wears one, drawn from a distance field where
-   the silhouette's own edge sits at 0.5. Opening an image drives that threshold
-   down to MASK_OPEN — past 0, so even the plane's furthest corner clears the
-   ramp and the whole rectangle shows — which grows the shape outward into the
-   full frame rather than dissolving one into the other.
-
-   The edge's width is taken from the field's own slope per screen pixel, so it
-   lands at about a pixel whatever size the plane is drawn at. MASK_SOFT_MIN is
-   only a floor for the other end of that: blown up large the slope goes to
-   nothing, and a hair of softness there hides the fact that a field this size
-   cannot hold a truly sharp corner. */
 const MASK_SOFT_MIN = 0.02;
 const MASK_OPEN = -0.12;
 
-/* How fast the field keeps falling away past the edge of the mask texture. The
-   plane can reach a little beyond that edge when its shape and the butterfly's
-   disagree sharply, and without this the clamped border would smear outward as
-   a band instead of continuing to recede. */
 const MASK_OUTSIDE = 0.6;
 
 const MASK_FRAGMENT = [
@@ -355,7 +145,6 @@ const MASK_FRAGMENT = [
     "#endif"
 ].join("\n");
 
-/* ---------- motion ---------- */
 const DRAG_SPEED = 0.05;
 const WHEEL_SPEED = 0.05;
 const MAX_VELOCITY = 4.5;
@@ -364,51 +153,20 @@ const VELOCITY_DECAY = 0.9;
 const SCROLL_DECAY = 0.8;
 const INVIS_THRESHOLD = 0.01;
 
-/* Mouse parallax: the pointer nudges the camera off the base position, giving
-   depth to the still frame. Only engages after the first move (see armFirstMove). */
 const DRIFT_AMOUNT = 9;
 const DRIFT_LERP = 0.06;
 
 const MAX_CONCURRENT_LOADS = 6;
 
-/* Images pulled per idle batch by the background warmer. Small on purpose: each
-   batch only starts once the pipe is empty, so this is the most that can ever be
-   queued ahead of something the viewer suddenly needs. */
 const WARM_BATCH = 4;
 
-/* Resident GPU texture ceiling. Chunks recycle their meshes as the camera
-   moves on, but nothing used to release the *textures* those meshes had
-   pointed at — every image ever decoded sat in textureCache for the life of
-   the tab, growing without bound as someone panned around or tried a few
-   filters. That's fine on a desktop GPU; on a phone it's what was crashing
-   the tab (iOS kills a page for excessive memory, which reads as a repeated
-   reload). Once the cache holds more than this, the least-recently-used
-   textures not currently on screen or in the active pool are disposed.
-   Lower on touch: phones have far less memory to spend than a desktop.
-
-   Counting alone is not a budget, though — the library averages 1500px on its
-   long edge, which is 8.5MB of GPU memory once mipmapped, so a count that
-   looks modest still runs to hundreds of megabytes. TEXTURE_MAX_EDGE is what
-   makes the count mean something: every image is redrawn down to it before it
-   is ever uploaded. The canvas draws these a few hundred pixels wide and the
-   opened one about a screen tall, so nothing here is resolution the viewer
-   was going to see. */
 const TEXTURE_CACHE_LIMIT_DESKTOP = 90;
 const TEXTURE_CACHE_LIMIT_TOUCH = 36;
 const TEXTURE_MAX_EDGE_DESKTOP = 1280;
 const TEXTURE_MAX_EDGE_TOUCH = 1024;
 
-/* A plane only queues its (full-res) texture once it's this visible, not the
-   instant it crosses INVIS_THRESHOLD. Raising the bar keeps the initial load to
-   the planes actually around the viewport — the faint, far, edge-of-frustum
-   stack streams in as you move toward it instead of all at once. */
 const REQUEST_THRESHOLD = 0.12;
 
-/* ---------- deterministic PRNG ---------- */
-/* `salt` bumps once per filter switch. Within one filter it never changes, so
-   chunks stay deterministic — cull one and rebuild it later and it comes back
-   identical — but each switch re-seeds the whole space, so the images spread
-   back out into a genuinely new arrangement rather than refilling the old one. */
 function hashCoords(cx, cy, cz, salt) {
     let h = 2166136261 >>> 0;
     h = Math.imul(h ^ ((cx + 0x9e3779b9) >>> 0), 16777619);
@@ -421,11 +179,6 @@ function hashCoords(cx, cy, cz, salt) {
     return h >>> 0;
 }
 
-/* ---------- reel spine ---------- */
-/* Read an SVG path of one M followed by cubic C segments into a flat list of
-   Bezier segments. Deliberately minimal — this parses the shape of path we
-   author for the reel, not SVG in general; anything else throws it out and the
-   reel falls back to a straight column. */
 function parsePath(d) {
     const t = d.match(/[MmCc]|-?\d*\.?\d+/g);
     if (!t) return null;
@@ -445,8 +198,7 @@ function parsePath(d) {
             const y = n();
             cx = cmd === "m" ? cx + x : x;
             cy = cmd === "m" ? cy + y : y;
-            /* Any coordinate pairs following an M are implicit line commands;
-               the reel path doesn't use them, so stop rather than guess. */
+
             cmd = null;
             if (i < t.length && !/[MmCc]/.test(t[i])) return null;
         } else if (cmd === "C" || cmd === "c") {
@@ -469,20 +221,12 @@ function parsePath(d) {
     return segs.length ? segs : null;
 }
 
-/* Sample the path into a table the reel can query by height.
-
-   The reel places images at even *vertical* intervals and looks up how far the
-   spine has wandered sideways at that height — so the strip's framing (one
-   image centred, its neighbours peeking in) stays exact no matter how the path
-   curves. That makes the useful form of the path x as a function of y, which is
-   why this samples into a y-ascending table rather than by arc length. */
 function buildSpine(d, samples) {
     const segs = parsePath(d);
     const xs = new Float64Array(samples + 1);
     const ys = new Float64Array(samples + 1);
     if (!segs) {
-        /* Straight column at frame centre — the reel still works, it just
-           doesn't curve. */
+
         for (let i = 0; i <= samples; i++) {
             xs[i] = 50;
             ys[i] = (i / samples) * 100;
@@ -505,9 +249,6 @@ function buildSpine(d, samples) {
     return { xs: xs, ys: ys };
 }
 
-/* Lateral position of the spine at height `y` (viewBox units, 0..100), by
-   binary search over the y-ascending table. Clamped at both ends so heights off
-   either end of the path just hold the end's offset. */
 function spineX(spine, y) {
     const ys = spine.ys;
     const xs = spine.xs;
@@ -528,7 +269,6 @@ function spineX(spine, y) {
 
 const REEL_SPINE = buildSpine(REEL_PATH, REEL_SPINE_SAMPLES);
 
-/* mulberry32 — cheap, well-distributed, seedable */
 function mulberry32(seed) {
     let a = seed >>> 0;
     return function () {
@@ -544,7 +284,6 @@ export function createInfiniteCanvas(options) {
     const container = options.container;
     const images = options.images;
 
-    /* ---------- renderer ---------- */
     let renderer;
     try {
         renderer = new THREE.WebGLRenderer({
@@ -575,25 +314,17 @@ export function createInfiniteCanvas(options) {
 
     const geometry = new THREE.PlaneGeometry(1, 1);
 
-    /* ---------- texture cache + throttled loading ---------- */
     const loader = new THREE.TextureLoader();
     const textureCache = new Map();
-    /* Last-touched order for textureCache, so trimTextureCache() can free the
-       coldest entries first. A monotonic counter rather than Date.now() —
-       cheaper, and all that matters is relative order. */
+
     const textureLastUsed = new Map();
     let lruClock = 0;
     const loadQueue = [];
     const prefetched = new Set();
-    /* Sources that have failed once. Never requested again, and never handed to
-       a plane as a replacement. */
+
     const badSources = new Set();
     let activeLoads = 0;
 
-    /* Give a plane whose image 404'd a different one from the pool, so a missing
-       file degrades into a repeat rather than a gap. Bounded tries — if the pool
-       is mostly dead there is nothing useful to swap to and the plane is left
-       alone rather than thrashing the loader. */
     function reassignBadPlane(mesh) {
         if (!activePool.length || badSources.size >= activePool.length) return;
         for (let i = 0; i < 10; i++) {
@@ -606,10 +337,6 @@ export function createInfiniteCanvas(options) {
         }
     }
 
-    /* Redraws an oversized image down before it reaches the GPU. Swapping the
-       texture's source for the smaller canvas also drops the last reference to
-       the full-size decode, so the memory goes back rather than being held for
-       an upload that never uses it. */
     function shrinkTexture(texture) {
         const img = texture.image;
         if (!img || !img.width || !img.height) return;
@@ -692,10 +419,7 @@ export function createInfiniteCanvas(options) {
                         releaseSource(texture);
                     } catch (e) {}
                     textureCache.set(job.src, texture);
-                    /* Stamped here too, not just in applyTexture — a warmed
-                       texture arrives with no mesh yet, and without this it
-                       would look like the coldest thing in the cache and get
-                       disposed by the very next trim before anything used it. */
+
                     textureLastUsed.set(job.src, ++lruClock);
                     if (job.mesh) applyTexture(job.mesh, job.src, texture);
                     reportProgress();
@@ -707,11 +431,7 @@ export function createInfiniteCanvas(options) {
                 function () {
                     activeLoads--;
                     textureCache.set(job.src, null);
-                    /* A file that isn't there must not cost us a plane. Without
-                       this the plane holds a src that will never resolve, stays
-                       at opacity 0 forever, and reads as a hole in the field —
-                       which is exactly what a mis-encoded filename looks like in
-                       production while working locally. */
+
                     badSources.add(job.src);
                     if (job.mesh) reassignBadPlane(job.mesh);
                     reportProgress();
@@ -734,11 +454,6 @@ export function createInfiniteCanvas(options) {
         }
     }
 
-    /* Every source currently worth keeping resident: on screen right now (in a
-       live chunk or the reel), or in the pool a plane could be reassigned to
-       at any moment. Anything else in textureCache is a leftover — decoded for
-       a chunk that's since scrolled away, or from a filter no longer showing —
-       and safe to free. */
     function collectActiveSources() {
         const active = new Set();
         for (let i = 0; i < activePool.length; i++) active.add(activePool[i].src);
@@ -754,16 +469,8 @@ export function createInfiniteCanvas(options) {
         return active;
     }
 
-    /* Keeps textureCache bounded across a long session. Only runs the (cheap
-       but not free) active-source scan once the cache actually exceeds the
-       ceiling, and only ever disposes textures nothing currently needs — a
-       plane already on screen never loses its image out from under it. */
     function trimTextureCache() {
-        /* Counted rather than taken from Map.size: a file that failed is kept
-           here as a null so it is never fetched twice, and those can never be
-           disposed. Sizing the trim by the raw count would let a handful of
-           missing images stand in for live ones and evict real textures that
-           were still wanted. */
+
         let live = 0;
         textureCache.forEach(function (texture) { if (texture) live++; });
         if (live <= TEXTURE_CACHE_LIMIT) return;
@@ -796,13 +503,7 @@ export function createInfiniteCanvas(options) {
                 mesh.userData.requested = true;
                 applyTexture(mesh, src, cached);
             } else {
-                /* Already known to be missing. This is the common path for a
-                   404, not the per-plane one: most fetches are background
-                   warming jobs that carry no mesh, so by the time a plane asks
-                   for the file the failure is only a null in the cache. Marking
-                   it requested here — as this used to — is what turned one bad
-                   file into a permanent hole. Leave it unrequested so the frame
-                   loop picks up the replacement on the next tick. */
+
                 reassignBadPlane(mesh);
             }
             return;
@@ -813,7 +514,6 @@ export function createInfiniteCanvas(options) {
         pumpQueue();
     }
 
-    /* ---------- mesh pool ---------- */
     const pool = [];
 
     function acquireMesh() {
@@ -825,8 +525,7 @@ export function createInfiniteCanvas(options) {
             opacity: 0,
             depthWrite: false
         });
-        /* fwidth is core on WebGL2 and this is ignored there; it only matters
-           if the renderer ever falls back. */
+
         material.extensions = { derivatives: true };
         material.onBeforeCompile = function (shader) {
             shader.uniforms.uReveal = { value: 0 };
@@ -842,10 +541,6 @@ export function createInfiniteCanvas(options) {
         return new THREE.Mesh(geometry, material);
     }
 
-    /* Sizes the mask square so the butterfly lands on the plane at its own
-       proportions, as large as it can be without any of it running off an
-       edge. The photo keeps the plane, so what gives is coverage: a wide moth
-       on an upright photo simply leaves the top and bottom of it uncovered. */
     function updateMask(mesh, reveal) {
         mesh.userData.reveal = reveal;
 
@@ -888,12 +583,6 @@ export function createInfiniteCanvas(options) {
         return (i == null || !masks.length) ? null : masks[i % masks.length];
     }
 
-    /* Masked only on the free field. Every filter and every arrangement is a
-       composition someone else laid out — a silhouette cutting across a row is
-       just damage there — and selectEnabled already marks that difference, so
-       the mask rides the same flag that decides whether a photo can be opened
-       at all. Each of those switches rebuilds its planes behind the dip it
-       already plays, so the mask arriving or leaving is never seen. */
     function applyMask(mesh) {
         const mask = selectEnabled ? maskFor(mesh) : null;
         const next = mask ? mask.texture : null;
@@ -916,9 +605,7 @@ export function createInfiniteCanvas(options) {
 
     const chunks = new Map();
     let activePool = images.slice();
-    /* The pool a filter switch is fetching ahead of its swap. Protected from the
-       trim until it becomes activePool, or the prefetch would be disposed as it
-       lands and loaded again after the swap. */
+
     let incomingPool = [];
     let layoutSalt = 0;
 
@@ -1026,12 +713,11 @@ export function createInfiniteCanvas(options) {
     }
 
     let reelActive = false;
-    /* `wanted` is the side the manifest asked for; `reelSide` is the one the
-       viewport can actually take — see applyReelSide. */
+
     let reelSideWanted = "right";
     let reelSide = "right";
     const reelItems = [];
-    /* Non-zero only while a view's strip is up — see REEL_AUTO_RATE. */
+
     let reelAutoRate = 0;
     let reelStart = null;
     let reelSlot = null;
@@ -1089,11 +775,6 @@ export function createInfiniteCanvas(options) {
         reelItems.length = 0;
     }
 
-    /* On a phone every strip runs along the bottom, whatever it was told. A
-       vertical strip in a portrait frame has barely more room to travel than a
-       horizontal one and leaves nothing either side for the copy; a diagonal has
-       less of both. The copy is pinned to the top of the frame at that width, so
-       the images take the bottom. */
     function applyReelSide() {
         reelSide = window.matchMedia("(max-width: 900px)").matches
             ? "bottom"
@@ -1220,30 +901,24 @@ export function createInfiniteCanvas(options) {
         }
     }
 
-    
     function layoutReel(halfW, halfH) {
         const n = reelItems.length;
         if (!n) return;
 
-        /* "center" is horizontal like top/bottom; only its inset differs. */
         const vertical = reelSide === "left" || reelSide === "right";
         const diagonal = reelSide === "diagonal";
-        /* Which way along the cross axis the strip is pushed. Moot for "center"
-           and "diagonal", whose inset is 0 — the sign multiplies out. */
+
         const crossSign = (reelSide === "right" || reelSide === "top") ? 1 : -1;
 
         const ax = reelAxes(reelSide);
-        /* How far the frame reaches in each of the strip's directions — the
-           rectangle's support function, which reduces to halfW/halfH on the two
-           square-on axes and correctly gives a diagonal its longer run. */
+
         const halfAlong = halfW * Math.abs(ax.ax) + halfH * Math.abs(ax.ay);
         const halfCross = halfW * Math.abs(ax.cx) + halfH * Math.abs(ax.cy);
         const box = reelBoxFor(reelSide);
 
         const boxAlong = halfAlong * 2 * box.along;
         const boxCross = halfCross * 2 * box.cross;
-        /* An image is always upright, so its height and width are capped by the
-           frame's own axes once the strip is off them. */
+
         const boxH = diagonal ? halfH * 2 * box.cross : (vertical ? boxAlong : boxCross);
         const boxW = diagonal ? halfW * 2 * box.along : (vertical ? boxCross : boxAlong);
         const gapPx = boxAlong * box.gap;
@@ -1256,9 +931,7 @@ export function createInfiniteCanvas(options) {
             const size = Math.min(boxH, boxW / aspect);
             reelSize[i] = size;
             reelStart[i] = loop;
-            /* How much of the strip an upright image occupies: its own support
-               function along the travel direction, which is just the height on
-               a vertical strip and the width on a horizontal one. */
+
             const along = box.snug
                 ? Math.abs(size * aspect * ax.ax) + Math.abs(size * ax.ay)
                 : boxAlong;
@@ -1288,7 +961,6 @@ export function createInfiniteCanvas(options) {
 
             mesh.userData.size = reelSize[i];
 
-       
             const dCross = (spineX(REEL_SPINE, vy + AHEAD) -
                 spineX(REEL_SPINE, vy)) / 50 * halfCross;
             mesh.userData.lean = -REEL_TILT * Math.atan2(dCross, dAlong);
@@ -1304,7 +976,6 @@ export function createInfiniteCanvas(options) {
             if (loadQueue[i].mesh) loadQueue.splice(i, 1);
         }
     }
-
 
     function preload(onProgress, onComplete) {
         if (preloadStarted) return;
@@ -1328,7 +999,6 @@ export function createInfiniteCanvas(options) {
         reportProgress();
     }
 
-  
     function prefetchSources(list) {
         for (let i = 0; i < list.length; i++) {
             const src = list[i].src;
@@ -1339,18 +1009,6 @@ export function createInfiniteCanvas(options) {
         pumpQueue();
     }
 
-    /* ---------- background warming ----------
-       The opening view is capped so the first paint is cheap, but that cap must
-       not decide what the site can ever show: switching filters pulls images
-       that were never part of it, and on a cold connection those arrive late
-       enough to read as gaps. So once the intro is over, the rest of the library
-       is fetched in the background.
-
-       Strictly while the pipe is idle, a few at a time. The load queue is shared
-       with everything the viewer is actually waiting on and MAX_CONCURRENT_LOADS
-       is small, so dumping two hundred jobs into it would put the next visible
-       plane behind the entire library. Idle-gating means warming can only ever
-       use slack, never take a slot from something on screen. */
     let warmList = null;
     let warmIndex = 0;
     let warmActive = 0;
@@ -1362,18 +1020,9 @@ export function createInfiniteCanvas(options) {
         pumpWarm();
     }
 
-    /* Warming used to run each file all the way through the loader, which built
-       a texture and uploaded it — and since a warmed image is on no plane and
-       in no pool, the cache trim freed it again almost immediately. The whole
-       library was being decoded and pushed to the GPU to be thrown away.
-
-       Only the fetch is worth keeping. It leaves the file in the browser's own
-       cache, which is the part that makes a later filter switch quick, and
-       costs no texture memory at all. The real load, when a plane finally asks
-       for it, then comes off disk. */
     function pumpWarm() {
         if (!warmList) return;
-        /* Anything in flight or already queued outranks warming, no exceptions. */
+
         if (activeLoads > 0 || loadQueue.length) return;
 
         while (warmActive < WARM_BATCH && warmIndex < warmList.length) {
@@ -1405,12 +1054,10 @@ export function createInfiniteCanvas(options) {
         for (let i = 0; i < list.length; i++) {
             if (!textureCache.has(list[i].src)) continue;
             settled++;
-            /* has() is true for failures too — the cache stores null for them.
-               Only a real texture counts toward "ready", or a pool of 404s would
-               satisfy the gate instantly and the spread would carry nothing. */
+
             if (textureCache.get(list[i].src)) decoded++;
         }
-        /* ...but if everything has settled, waiting longer achieves nothing. */
+
         if (settled === list.length) return true;
         return decoded / list.length >= SWAP_READY_FRACTION;
     }
@@ -1512,10 +1159,7 @@ export function createInfiniteCanvas(options) {
     function onPointerMove(e) {
         if (!dragging) return;
         if (reelActive) {
-            /* Pointer travel projected onto the strip's own direction, so a
-               diagonal drags along its diagonal. The two square-on cases come
-               out exactly as the hand-written signs did: screen y runs opposite
-               world y, screen x runs with it. */
+
             const dragAxes = reelAxes(reelSide);
             reelScroll.targetVel -=
                 ((e.clientX - lastPointer.x) * dragAxes.ax +
@@ -1586,7 +1230,7 @@ export function createInfiniteCanvas(options) {
     el.addEventListener("webglcontextrestored", onContextRestored);
 
     function onResize() {
-        /* Crossing the breakpoint can change which way a live strip runs. */
+
         applyReelSide();
         const w = container.clientWidth;
         const h = container.clientHeight;
@@ -1609,9 +1253,6 @@ export function createInfiniteCanvas(options) {
         if (!running) return;
         requestAnimationFrame(frame);
 
-        /* Seconds since the last frame, capped so a backgrounded tab or a long
-           stall doesn't resume by leaping. Only the ambient drift uses it — the
-           rest of the motion is per-frame by design. */
         const nowMs = performance.now();
         const dt = lastFrameAt ? Math.min((nowMs - lastFrameAt) / 1000, 0.05) : 0;
         lastFrameAt = nowMs;
@@ -1645,9 +1286,7 @@ export function createInfiniteCanvas(options) {
         reelScroll.accum *= SCROLL_DECAY;
         reelScroll.targetVel = clamp(reelScroll.targetVel, -MAX_VELOCITY, MAX_VELOCITY);
         reelScroll.vel += (reelScroll.targetVel - reelScroll.vel) * VELOCITY_LERP;
-        /* Drift is added to the position, not to the velocity: pushed through
-           the velocity it would decay away like a flick, and the strip would
-           coast to a stop instead of carrying on. */
+
         reelScroll.pos += reelScroll.vel + (reelActive ? reelAutoRate * dt : 0);
         reelScroll.targetVel *= VELOCITY_DECAY;
 
@@ -1691,28 +1330,18 @@ export function createInfiniteCanvas(options) {
         renderer.render(scene, camera);
     }
 
-    /* One plane, one frame. Shared by the chunk field and the reel: the only
-       thing that differs between them is where `home` comes from, and both have
-       already written it by the time this runs. */
     function updatePlane(mesh, gridFade) {
         const home = mesh.userData.home;
-        /* Camera looks down -Z, so a plane is in front when its z is less than
-           the camera's. Planes behind get no opacity and no texture — they've
-           been flown past and aren't drawable anyway, so this keeps the load
-           budget on what's ahead.
-           Depth is measured from home, not the rendered position: a plane
-           collapsing toward the anchor must keep the visibility it had where it
-           lives, or it would blink out mid-flight. */
+
         const forward = basePos.z - home.z;
         const absDepth = Math.abs(home.z - basePos.z);
 
         let depthFade;
         if (forward < 0 || absDepth > DEPTH_FADE_END || absDepth < NEAR_FADE_CUT) {
-            /* behind the camera, past the far fade, or so close it would fill
-               the screen — draw nothing */
+
             depthFade = 0;
         } else if (absDepth < NEAR_FADE_FULL) {
-            /* ramping up out of the near-fade zone as it recedes */
+
             depthFade = (absDepth - NEAR_FADE_CUT) /
                 (NEAR_FADE_FULL - NEAR_FADE_CUT);
         } else if (absDepth > DEPTH_FADE_START) {
@@ -1725,22 +1354,14 @@ export function createInfiniteCanvas(options) {
 
         const target = Math.min(gridFade, depthFade) * fadeState.filterFade;
 
-        /* Only pull a texture once the plane is prominent enough to be worth a
-           download — see REQUEST_THRESHOLD. */
         if (target > REQUEST_THRESHOLD && !mesh.userData.requested) {
             requestTexture(mesh, mesh.userData.src);
         }
 
-        /* Gather: slide the plane from home to its own spot in the cluster and
-           shrink it, holding full opacity the whole way — the images gather,
-           they don't dissolve. */
         const ct = frameCollecting ? meshCollect(mesh.userData.phase) : 0;
         const shrink = 1 - ct * (1 - COLLECT_SCALE);
         const pile = mesh.userData.pile;
 
-        /* Mix: turn the tile's place in the cluster around the anchor, further
-           at the centre than at the rim, and tumble it on its own axis as it
-           goes. */
         let pileX = pile.x;
         let pileY = pile.y;
         if (collect.swirl !== 0) {
@@ -1750,21 +1371,13 @@ export function createInfiniteCanvas(options) {
             pileX = pile.x * cos - pile.y * sin;
             pileY = pile.x * sin + pile.y * cos;
         }
-        /* Two rotations, each owned by one end of the move: the cluster's tumble
-           scaled by ct so it unwinds to nothing as the plane flies back out
-           (otherwise the swirl's final value leaves the settled field at a
-           tilt), and the reel's lean into its spine scaled by the inverse, so a
-           strip image is upright-on-the-curve at rest and surrenders that as it
-           gathers. Chunk planes carry lean 0 and only ever see the first. */
+
         let rot = collect.swirl * pile.spin * ct + mesh.userData.lean * (1 - ct);
         let px = home.x + (anchorWorld.x + pileX * framePileScale - home.x) * ct;
         let py = home.y + (anchorWorld.y + pileY * framePileScale - home.y) * ct;
         let pz = home.z + (anchorWorld.z + pile.z - home.z) * ct;
         let sh = mesh.userData.size * shrink;
 
-        /* Focus rides on top of all of the above, and only ever on one plane.
-           It blends from wherever the plane already is, so opening and closing
-           read as the same image travelling rather than a new one appearing. */
         if (focus.amount > 0 && mesh === focusMesh) {
             const f = focus.amount;
             const fh = Math.min(focusMaxH, focusMaxW / mesh.userData.aspect);
@@ -1772,7 +1385,7 @@ export function createInfiniteCanvas(options) {
             py += (focusTarget.y - py) * f;
             pz += (focusTarget.z - pz) * f;
             sh += (fh - sh) * f;
-            /* Square up as it opens — a tilted hero image looks like an error. */
+
             rot *= 1 - f;
         }
 
@@ -1784,15 +1397,11 @@ export function createInfiniteCanvas(options) {
 
         const reveal = mesh.userData.hasTexture ? target : 0;
         mesh.userData.opacity += (reveal - mesh.userData.opacity) * 0.18;
-        /* The pinch is applied after the smoothing lerp, never through it: the
-           lerp is there to ease chunk and depth fades, and running the swap dip
-           through it would leave planes still faintly visible at the moment the
-           pool changes underneath. */
+
         let alpha = mesh.userData.opacity * collect.pinch;
 
         if (focus.amount > 0) {
-            /* The opened plane goes fully solid whatever its depth fade said —
-               it is no longer part of the field — and takes the rest with it. */
+
             alpha = mesh === focusMesh
                 ? alpha + (1 - alpha) * focus.amount
                 : alpha * (1 - focus.amount);
@@ -1811,18 +1420,10 @@ export function createInfiniteCanvas(options) {
 
     frame();
 
-    /* ---------- public API ---------- */
     return {
-        /* Switch the visible pool. `anchor` is [x, y] in normalised screen
-           coords (-1..1, y up) — the corner this menu item gathers into; omit
-           it for centre. The field never blanks: it gathers into a cluster at
-           that corner, holds there, swaps behind a short dip, and scatters back
-           out into a re-seeded layout. Returns the timeline so the menu can stay
-           locked until it lands. */
+
         setFilter: function (nextImages, opts) {
-            /* Start the download now, while the outgoing images still have the
-               whole gather and hold to play out — that head start is most of
-               what the spread needs to come back full. */
+
             incomingPool = nextImages.slice();
             prefetchSources(nextImages);
 
@@ -1830,12 +1431,9 @@ export function createInfiniteCanvas(options) {
             const anchor = o.anchor;
             const wantsReel = o.layout === "reel";
 
-            /* Selection belongs to the unfiltered canvas only, so drop whatever
-               is selected or open and let the caller say whether the view being
-               switched to gets it back. */
             cancelFocus();
             selectEnabled = Boolean(o.selectable);
-            /* A filter's reel is static until you move it. */
+
             reelAutoRate = 0;
 
             const tl = window.gsap.timeline();
@@ -1847,15 +1445,9 @@ export function createInfiniteCanvas(options) {
             });
             tl.set(collect, { pinch: 1, swirl: 0, blur: 0 });
 
-            /* 1. Gather into the corner — visible the whole way in. */
             tl.fromTo(collect, { p: 0 },
                 { p: 1, duration: COLLECT_IN, ease: "power2.inOut" });
 
-            /* 2. Sit there sharp for a beat (the "+=" gap), then mix: one
-                  continuous stir spanning the swap, with the blur and the dim
-                  peaking exactly where the pool changes. The stir is deliberately
-                  a single monotonic tween across both halves — reversing it would
-                  read as the cluster un-mixing, which is its own kind of cut. */
             tl.addLabel("mix", "+=" + PILE_HOLD_IN);
             tl.to(collect, {
                 swirl: CHURN_SWIRL,
@@ -1869,39 +1461,26 @@ export function createInfiniteCanvas(options) {
                 ease: "power2.in"
             }, "mix");
 
-            /* 3. Swap at the peak of the mix — blurred past legibility, dimmed,
-                  and still turning. */
             tl.call(function () {
-                /* Guarded: resuming a paused timeline can re-render the playhead
-                   position the pause happened at, and the swap must not run twice. */
+
                 if (swapped) return;
                 swapped = true;
 
                 activePool = nextImages.slice();
                 incomingPool = [];
-                /* New seed => the images scatter into a new arrangement rather
-                   than dropping back into the outgoing set's slots. */
+
                 layoutSalt = (layoutSalt + 1) >>> 0;
 
-                /* Whichever layout is going, tear the other one down first —
-                   the two never coexist. Both leave their planes at the pile
-                   (ct is 1 here), so the spread that follows carries the new
-                   set out of the cluster either way; the only difference is
-                   where "out" is. */
                 clearChunks();
                 clearReel();
-                /* The outgoing pool's textures just lost their meshes and, unless
-                   the new pool overlaps them, their protection too — free now
-                   rather than waiting for the next load, while it's hidden in
-                   the blur. */
+
                 trimTextureCache();
                 reelActive = wantsReel;
                 if (wantsReel) {
                     reelSideWanted = o.side || "right";
                     applyReelSide();
                     buildReel();
-                    /* Nothing left to fly through, and a leftover fling would
-                       drag the strip's frame with it. */
+
                     targetVel.x = targetVel.y = targetVel.z = 0;
                     velocity.x = velocity.y = velocity.z = 0;
                     scrollAccum = 0;
@@ -1909,17 +1488,11 @@ export function createInfiniteCanvas(options) {
                     updateChunks();
                 }
 
-                /* Hold in the mix until enough of the new pool has decoded, so
-                   the cluster resolves carrying images rather than empty
-                   planes. Freezing here is cheap: blurred and mid-stir is a
-                   perfectly good place to wait. */
                 if (poolReady(activePool)) return;
                 tl.pause();
                 whenPoolReady(activePool, function () { tl.play(); });
             }, null, "mix+=" + CHURN_IN);
 
-            /* 4. Resolve out of the mix — the stir is still running under this,
-                  so the new cluster settles rather than snapping into focus. */
             tl.to(collect, {
                 blur: 0,
                 pinch: 1,
@@ -1927,12 +1500,6 @@ export function createInfiniteCanvas(options) {
                 ease: "power2.out"
             }, "mix+=" + CHURN_IN);
 
-            /* 5. Spread back out, after a gap that lets the new cluster register
-                  as itself before it flies apart. The filter's copy is cued from
-                  here rather than from the swap: the swap happens inside the
-                  pinch, roughly a second before anything visibly moves, so a
-                  panel keyed to it arrived and then sat waiting for the images.
-                  Cued here it fades up while they are being placed. */
             const spreadAt = "mix+=" + (CHURN_IN + CHURN_OUT + PILE_HOLD_OUT);
 
             tl.call(function () {
@@ -1944,26 +1511,15 @@ export function createInfiniteCanvas(options) {
             return tl;
         },
 
-        /* Re-lay the images already on the canvas into a different arrangement.
-           `side` is a reel side, or null to go back to the scattered field.
-
-           Deliberately not setFilter: the pool does not change, so there is
-           nothing for a gather-and-mix to hide, and collapsing a field into a
-           corner only to send the same photographs back out reads as ceremony
-           for its own sake. This dissolves and re-forms in place. */
         setArrangement: function (side, onForm) {
             const g = window.gsap;
             const tl = g.timeline();
             const toReel = Boolean(side);
 
             cancelFocus();
-            /* Off while a strip is up, back on when this returns to the field.
-               Clearing a view is the only way back to the scattered canvas that
-               doesn't go through setFilter, so leaving this false — as it was —
-               is what silently killed click-to-open after a view. */
+
             selectEnabled = !toReel;
 
-            /* p stays at 0 throughout — nothing gathers. */
             tl.set(collect, { p: 0, swirl: 0, blur: 0 });
             tl.to(collect, { pinch: 0, duration: ARRANGE_OUT, ease: "power2.in" });
 
@@ -1980,7 +1536,7 @@ export function createInfiniteCanvas(options) {
                     targetVel.x = targetVel.y = targetVel.z = 0;
                     velocity.x = velocity.y = velocity.z = 0;
                     scrollAccum = 0;
-                    /* buildReel zeroes this, so the offset has to come after. */
+
                     reelScroll.pos = ARRANGE_SLIDE;
                 } else {
                     updateChunks();
@@ -1988,8 +1544,7 @@ export function createInfiniteCanvas(options) {
             });
 
             tl.addLabel("form");
-            /* Same cue as a filter's spread: the copy arrives as the images are
-               being placed, not before them. */
+
             tl.call(function () {
                 if (typeof onForm === "function") onForm();
             }, null, "form");
@@ -1997,32 +1552,23 @@ export function createInfiniteCanvas(options) {
             if (toReel) {
                 tl.to(reelScroll, { pos: 0, duration: ARRANGE_IN, ease: "power3.out" }, "form");
             }
-            /* Started only once the slide has landed: that tween writes pos
-               absolutely every tick, so a drift running under it would be
-               overwritten frame by frame and never show. */
+
             tl.call(function () { reelAutoRate = toReel ? REEL_AUTO_RATE : 0; });
             return tl;
         },
 
-        /* Warm the cache for a pool that hasn't been chosen yet (menu hover). */
         prefetch: function (list) {
             prefetchSources(list);
         },
 
-        /* Pull the whole library in the background, once the intro is done.
-           `list` is an array of src strings. Idle-gated — see pumpWarm. */
         warmAll: function (list) {
             warmAll(list);
         },
 
-        /* Kick off the background preload behind the black loading screen.
-           onProgress(fraction 0..1) drives the loading counter; onComplete fires
-           once every image has settled, which is what cues the reveal. */
         preload: function (onProgress, onComplete) {
             preload(onProgress, onComplete);
         },
 
-        /* Beat 1: bring the images up (camera still) as the loader collapses. */
         fadeIn: function () {
             if (fadeStarted) return;
             fadeStarted = true;
@@ -2033,8 +1579,6 @@ export function createInfiniteCanvas(options) {
             });
         },
 
-        /* Beat 2: fly the camera forward through two chunks. Input unlocks and
-           onDone fires when it lands (main flips the overlay to difference then). */
         zoom: function (onDone) {
             if (zoomStarted) return null;
             zoomStarted = true;
@@ -2052,7 +1596,6 @@ export function createInfiniteCanvas(options) {
             return tl;
         },
 
-        /* Start watching for the first mouse move; parallax engages from then on */
         armFirstMove: function () {
             firstMoveArmed = true;
         },
