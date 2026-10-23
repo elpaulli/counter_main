@@ -19,6 +19,12 @@
     }
 }
 
+@media (min-width: 901px) {
+    .grid-michelin-mobile {
+        display: none;
+    }
+}
+
 @media (max-width: 900px) {
     .site-grid-top-right {
         display: flex;
@@ -56,6 +62,21 @@
 
     .site-grid-bottom-right {
         padding-bottom: 60px;
+    }
+
+    .site-grid-bottom-left img.Michelin {
+        display: none;
+    }
+
+    .grid-michelin-mobile {
+        display: flex;
+        justify-content: flex-start;
+        margin-top: 6px;
+    }
+
+    .grid-michelin-mobile img.Michelin {
+        width: 100%;
+        height: auto;
     }
 
     .site-grid-center:not(".past_presnt") {
@@ -476,11 +497,6 @@
 
     .legal-head {
         margin-bottom: 8vh;
-    }
-
-    .legal-p,
-    .legal-list {
-        max-width: min(22ch, 84vw);
     }
 
     .legal-close {

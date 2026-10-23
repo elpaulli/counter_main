@@ -875,7 +875,16 @@ body.partners-open .infinite-canvas {
     text-transform: uppercase;
     margin: 0;
 }
-
+img.Michelin {
+    max-width: 150px;
+}
+img.Michelin-dark,
+.dark_theme img.Michelin-light {
+    display: none;
+}
+.dark_theme img.Michelin-dark {
+    display: block;
+}
 .legal-h {
     font-size: clamp(30px, 5.4vw, 96px);
     line-height: 0.9;
