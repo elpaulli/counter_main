@@ -252,18 +252,21 @@ function buildMenu(manifest, handlers) {
         if (e.key === "Escape" && open) setOpen(false);
     });
 
-    if (typeof handlers.onHover === "function") {
+    if (typeof handlers.onHover === "function" && !isTouch) {
         let dwell = null;
         buttons.forEach(function (btn) {
             function arm() {
                 if (btn.dataset.filter === current) return;
                 clearTimeout(dwell);
-                dwell = setTimeout(function () { handlers.onHover(btn.dataset.filter); },
-                    PREFETCH_DWELL_MS);
+                dwell = setTimeout(function () {
+                    if (busy || btn.dataset.filter === current) return;
+                    handlers.onHover(btn.dataset.filter);
+                }, PREFETCH_DWELL_MS);
             }
             btn.addEventListener("mouseenter", arm);
             btn.addEventListener("focus", arm);
             btn.addEventListener("mouseleave", function () { clearTimeout(dwell); });
+            btn.addEventListener("click", function () { clearTimeout(dwell); });
         });
     }
 }

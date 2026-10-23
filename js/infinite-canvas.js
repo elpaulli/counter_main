@@ -320,7 +320,7 @@ export function createInfiniteCanvas(options) {
     const textureLastUsed = new Map();
     let lruClock = 0;
     const loadQueue = [];
-    const prefetched = new Set();
+    const inflight = new Map();
 
     const badSources = new Set();
     let activeLoads = 0;
@@ -405,23 +405,38 @@ export function createInfiniteCanvas(options) {
             }
             const job = loadQueue.splice(bestIdx, 1)[0];
 
+            if (inflight.has(job.src)) {
+                if (job.mesh) inflight.get(job.src).push(job.mesh);
+                continue;
+            }
+            inflight.set(job.src, job.mesh ? [job.mesh] : []);
+
             activeLoads++;
             loader.load(
                 job.src,
                 function (texture) {
                     activeLoads--;
-                    shrinkTexture(texture);
-                    texture.colorSpace = THREE.SRGBColorSpace;
-                    texture.generateMipmaps = true;
-                    texture.minFilter = THREE.LinearMipmapLinearFilter;
-                    try {
-                        renderer.initTexture(texture);
-                        releaseSource(texture);
-                    } catch (e) {}
-                    textureCache.set(job.src, texture);
+                    const waiters = inflight.get(job.src) || [];
+                    inflight.delete(job.src);
+
+                    const existing = textureCache.get(job.src);
+                    if (existing) {
+                        texture.dispose();
+                        texture = existing;
+                    } else {
+                        shrinkTexture(texture);
+                        texture.colorSpace = THREE.SRGBColorSpace;
+                        texture.generateMipmaps = true;
+                        texture.minFilter = THREE.LinearMipmapLinearFilter;
+                        try {
+                            renderer.initTexture(texture);
+                            releaseSource(texture);
+                        } catch (e) {}
+                        textureCache.set(job.src, texture);
+                    }
 
                     textureLastUsed.set(job.src, ++lruClock);
-                    if (job.mesh) applyTexture(job.mesh, job.src, texture);
+                    for (let i = 0; i < waiters.length; i++) applyTexture(waiters[i], job.src, texture);
                     reportProgress();
                     pumpQueue();
                     pumpWarm();
@@ -430,10 +445,14 @@ export function createInfiniteCanvas(options) {
                 undefined,
                 function () {
                     activeLoads--;
+                    const waiters = inflight.get(job.src) || [];
+                    inflight.delete(job.src);
                     textureCache.set(job.src, null);
 
                     badSources.add(job.src);
-                    if (job.mesh) reassignBadPlane(job.mesh);
+                    for (let i = 0; i < waiters.length; i++) {
+                        if (waiters[i].userData.src === job.src) reassignBadPlane(waiters[i]);
+                    }
                     reportProgress();
                     pumpQueue();
                     pumpWarm();
@@ -1002,8 +1021,7 @@ export function createInfiniteCanvas(options) {
     function prefetchSources(list) {
         for (let i = 0; i < list.length; i++) {
             const src = list[i].src;
-            if (textureCache.has(src) || prefetched.has(src)) continue;
-            prefetched.add(src);
+            if (textureCache.has(src) || inflight.has(src)) continue;
             loadQueue.push({ mesh: null, src: src });
         }
         pumpQueue();

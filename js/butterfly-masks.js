@@ -65,8 +65,11 @@ function silhouette(text) {
             ctx.fillRect(0, 0, MASK_SIZE, MASK_SIZE);
             ctx.drawImage(img, dx, dy, w, h);
             URL.revokeObjectURL(url);
+            const pixels = ctx.getImageData(0, 0, MASK_SIZE, MASK_SIZE).data;
+            cv.width = 0;
+            cv.height = 0;
             resolve({
-                pixels: ctx.getImageData(0, 0, MASK_SIZE, MASK_SIZE).data,
+                pixels: pixels,
                 w: w / MASK_SIZE,
                 h: h / MASK_SIZE
             });
@@ -174,7 +177,11 @@ async function field(pixels) {
 
 const SINGLE_CHANNEL = (function () {
     try {
-        return Boolean(document.createElement("canvas").getContext("webgl2"));
+        const gl = document.createElement("canvas").getContext("webgl2");
+        if (!gl) return false;
+        const lose = gl.getExtension("WEBGL_lose_context");
+        if (lose) lose.loseContext();
+        return true;
     } catch (e) {
         return false;
     }
