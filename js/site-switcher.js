@@ -40,7 +40,7 @@
 
     const BUSY_CLASSES = ['loading', 'intro'];
 
-    const SITES = [
+    const ALL_SITES = [
         {
             id: 'spaghett',
             title: 'Spaghett',
@@ -93,6 +93,7 @@
         {
             id: 'okeyo',
             title: 'oKEYo',
+            hidden: true,
             url: '',
             cta: 'Coming Soon',
 
@@ -113,6 +114,8 @@
             fontItalic: '"Quablo", "Helvetica Neue", Helvetica, Arial, sans-serif'
         }
     ];
+
+    const SITES = ALL_SITES.filter((site) => !site.hidden);
 
     const STAY_LABEL = 'Stay Here';
     const SOON_HINT = 'coming soon';

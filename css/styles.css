@@ -176,6 +176,9 @@ body.is-immersive .definition-text {
     justify-content: center;
     gap: .5em;
 }
+.site-grid-top-center .grid-cta {
+    font-size: 1em;
+}
 .site-grid-bg {
     position: absolute;
     
