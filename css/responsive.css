@@ -26,9 +26,13 @@
 }
 
 @media (max-width: 900px) {
+    .brand-mark {
+        top: 10px;
+    }
+
     .site-grid-top-right {
         display: flex;
-        margin-top: 1em;
+        margin-top: 0;
     }
 
     .hide_on_mobile {
@@ -55,9 +59,47 @@
     .site-grid-top-center {
         grid-column: 1 / -1;
         grid-row: 1;
+        align-items: flex-start;
+        justify-content: stretch;
+        padding: 0 48px 0 55px;
+    }
+
+    .site-grid-top-center .grid-cta {
+        flex: 1;
+        justify-content: center;
+        height: 40px;
+        box-sizing: border-box;
+        padding-top: .2em;
+        padding-bottom: 0;
+    }
+
+    .grid-phone {
+        display: flex;
         align-items: center;
-        justify-content: flex-end;
-        padding-bottom: 80px;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        box-sizing: border-box;
+        border: 1px solid var(--fg-20);
+        border-radius: 50%;
+        background: var(--bg);
+        color: var(--fg);
+        transition: border-color 0.3s ease, background-color var(--theme-fade), color var(--theme-fade);
+    }
+
+    .grid-phone:hover,
+    .grid-phone:focus-visible {
+        border-color: var(--fg-70);
+    }
+
+    .grid-phone-icon {
+        display: block;
+        width: 17px;
+        height: 17px;
+    }
+
+    .grid-phone-number {
+        display: none;
     }
 
     .site-grid-bottom-right {

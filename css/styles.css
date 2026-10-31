@@ -177,7 +177,24 @@ body.is-immersive .definition-text {
     gap: .5em;
 }
 .site-grid-top-center .grid-cta {
+    display: inline-flex;
+    align-items: center;
     font-size: 1em;
+    padding: 1em 2em .6em 2em;
+    line-height: .8;
+    background: var(--bg);
+    letter-spacing: 2px;
+    border: 1px solid var(--fg-20);
+    transition: border-color 0.3s ease, background-color var(--theme-fade), color var(--theme-fade);
+}
+
+.grid-phone-icon {
+    display: none;
+}
+
+.site-grid-top-center .grid-cta:hover,
+.site-grid-top-center .grid-cta:focus-visible {
+    border-color: var(--fg-70);
 }
 .site-grid-bg {
     position: absolute;
@@ -420,7 +437,8 @@ body.is-immersive .definition-text {
     stroke-width: 2.4;
 }
 
-.canvas-menu-option {
+.canvas-menu-option,
+.canvas-menu-link {
     background: none;
     border: none;
     padding: 9px 16px;
@@ -437,7 +455,9 @@ body.is-immersive .definition-text {
 }
 
 .canvas-menu-option:hover,
-.canvas-menu-option:focus-visible {
+.canvas-menu-option:focus-visible,
+.canvas-menu-link:hover,
+.canvas-menu-link:focus-visible {
     opacity: 1;
     background: var(--fg-20);
 }
@@ -1167,6 +1187,11 @@ body.pillars-open .infinite-canvas {
 
 .canvas-menu-views .canvas-menu-option {
     text-align: left;
+}
+
+.canvas-menu-link {
+    display: block;
+    text-decoration: none;
 }
 
 .canvas-menu-partners {
