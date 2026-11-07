@@ -93,7 +93,6 @@
 
 .definition-logo.is-active {
     opacity: 1;
-    pointer-events: auto;
 }
 
 .definition-text {
